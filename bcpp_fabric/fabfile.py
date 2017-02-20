@@ -1,29 +1,37 @@
+from __future__ import with_statement
 from fabric.api import local
+from unipath import Path
+import os
 
 from fabric.api import *
 from fabric.utils import error, warn
 from fabric.contrib.files import exists
 from fabric.colors import green, red, blue
-from __builtin__ import True
+from fabric.contrib.console import confirm
 
-hosts = {'django@192.168.1.68:22': 'Aish1uch'}
+hosts = {'django@10.113.201.251:22': 'Aish1uch'}
 
+BASE_DIR = Path(os.path.dirname(os.path.realpath(__file__)))
+NGINX_DIR = os.path.join(BASE_DIR.ancestor(1), 'nginx_deployment')
+GUNICORN_DIR = NGINX_DIR
 env.hosts = [host for host in hosts.keys()]
 env.passwords = hosts
 
 env.virtualenv_name = 'bcpp'
 env.source_dir = '/Users/django/source'
+PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
 
 env.update_repo = False
 
 env.create_db = False
 env.drop_and_create_db = True
 
+
 class FabricException(Exception):
     pass
 
 @task
-def remove_virtualenv(name=None):
+def remove_virtualenv():
     result = run('rmvirtualenv {}'.format(env.virtualenv_name))
     if result.succeeded:
         print(blue('removing {} virtualenv .....'.format(env.virtualenv_name)))
@@ -34,7 +42,7 @@ def remove_virtualenv(name=None):
 @task
 def create_virtualenv():
     print(blue('creating {} virtualenv .....'.format(env.virtualenv_name)))
-    run('mkvirtualenv {}'.format(env.virtualenv_name))
+    run('mkvirtualenv -p python3 {}'.format(env.virtualenv_name))
     print(green('{} virtualenv created.'.format(env.virtualenv_name)))
     print(green(''))
 
@@ -46,45 +54,76 @@ def clone_bcpp():
 
 @task
 def install_requirements():
-    with cd('{}/{}'.format(env.source_dir, 'bcpp')):
-        run('pip install -r requirements.txt')
+    with cd(PROJECT_DIR):
+        with prefix('workon bcpp'):
+            run('pip install -r requirements.txt -U')
 
 @task
-def create_database():
+def create_db_or_dropN_create_db():
     if env.drop_and_create_db:
-        if console.confirm('Are you sure you want to drop database {} and create it? y/n'.format('bcpp'),
+        if confirm('Are you sure you want to drop database {} and create it? y/n'.format('bcpp'),
                                default=False):
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            with settings(abort_exception=FabricException):
+                try:
+                    run("mysql -uroot -p -Bse 'drop database edc; create database edc character set utf8;'")
+                except FabricException as e:
+                    run("mysql -uroot -p -Bse 'create database edc character set utf8;'")
 
 @task
 def migrate():
     with prefix('workon bcpp'):
-        with cd ('/Users/django/source/bcpp/nginx_deployment'):
-            run('cp bcpp.conf {}/{}'.format(env.source_dir, 'bcpp'))
-            run('cp bcpp.conf {}/{}'.format(env.source_dir, 'bcpp'))
-            run('python manage.py migrate --run-syncdb')
+        with cd(PROJECT_DIR):
+            run('python manage.py makemigrations plot household member bcpp_subject')
+            run('python manage.py makemigrations')
+            run('python manage.py migrate')
+
+@task
+def make_keys_dir():
+    with cd(PROJECT_DIR):
+        run('mkdir  -p crypto_fields')
+        run('mkdir  -p media/edc_map')
+
+@task
+def initial_setup():
+        execute(remove_virtualenv)
+        execute(create_virtualenv)
+        execute(clone_bcpp)
+        execute(install_requirements)
+        execute(create_db_or_dropN_create_db)
+        execute(make_keys_dir)
+        execute(migrate)
+        execute(setup_nginx)
+
+@task
+def setup_gunicorn():
+    put(os.path.join(GUNICORN_DIR, 'gunicorn.conf'), PROJECT_DIR)
+    with cd(PROJECT_DIR):
+        run('mkdir -p logs')
+        with cd(os.path.join(PROJECT_DIR, 'logs')):
+                run('touch gunicorn-access.log')
+                run('touch gunicorn-error.log')
 
 @task
 def setup_nginx():
     sudo("mkdir -p /usr/local/etc/nginx/sites-available")
-    sudo("mkdir -p /usr/local/etc/nginx/sites-enabled")
-    with cd(env.source_dir):
-        pass
+    put(os.path.join(NGINX_DIR, 'bcpp.conf'), '/usr/local/etc/nginx/sites-available/bcpp.conf')
+    with cd('/usr/local/etc/nginx/sites-enabled'):
+            sudo('ln -s /usr/local/etc/nginx/sites-available/bcpp.conf bcpp.conf')
 
-    #
-    put('*.py', 'cgi-bin/')
+@task
+def update_repo():
+    with prefix('workon bcpp'):
+        with cd(PROJECT_DIR):
+            run('git pull')
+            run('pip install -r requirements.txt -U')
 
 @task
 def deploy(server=None):
     with settings(abort_exception=FabricException):
         try:
             if not env.update_repo:
-                execute(remove_virtualenv)
-                execute(create_virtualenv)
-                execute(clone_bcpp)
-                execute(install_requirements)
-                execute(migrate)
+                execute(initial_setup)
             else:
-                pass
+                execute(update_repo)
         except FabricException as e:
             print(e)
