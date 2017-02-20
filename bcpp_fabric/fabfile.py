@@ -15,6 +15,7 @@ hosts = HOSTS
 BASE_DIR = Path(os.path.dirname(os.path.realpath(__file__)))
 NGINX_DIR = os.path.join(BASE_DIR.ancestor(1), 'nginx_deployment')
 GUNICORN_DIR = NGINX_DIR
+
 env.hosts = [host for host in hosts.keys()]
 env.passwords = hosts
 
@@ -66,7 +67,7 @@ def create_db_or_dropN_create_db():
             with settings(abort_exception=FabricException):
                 try:
                     run("mysql -uroot -p -Bse 'drop database edc; create database edc character set utf8;'")
-                except FabricException as e:
+                except FabricException:
                     run("mysql -uroot -p -Bse 'create database edc character set utf8;'")
 
 @task
@@ -123,17 +124,14 @@ def stopNstart_nginx_and_gunicorn():
     with cd(PROJECT_DIR):
         with prefix('workon bcpp'):
             run('gunicorn -c gunicorn.conf.py bcpp.wsgi --pid /Users/django/source/bcpp/logs/gunicorn.pid --daemon')
-    print(green('nginx & gunicorn restarted.')
+    print(green('nginx & gunicorn restarted.'))
 
 @task
-def update_repo():
+def update_project():
     with prefix('workon bcpp'):
         with cd(PROJECT_DIR):
             run('git pull')
             run('pip install -r requirements.txt -U')
-    execute(setup_nginx)
-    execute(setup_gunicorn)
-    execute(stopNstart_nginx_and_gunicorn)
 
 @task
 def deploy(server=None):
@@ -142,6 +140,6 @@ def deploy(server=None):
             if not env.update_repo:
                 execute(initial_setup)
             else:
-                execute(update_repo)
+                execute(update_project)
         except FabricException as e:
             print(e)
