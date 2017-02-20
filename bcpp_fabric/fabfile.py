@@ -8,8 +8,9 @@ from fabric.utils import error, warn
 from fabric.contrib.files import exists
 from fabric.colors import green, red, blue
 from fabric.contrib.console import confirm
+from .hosts import HOSTS
 
-hosts = {'django@10.113.201.251:22': 'Aish1uch'}
+hosts = HOSTS
 
 BASE_DIR = Path(os.path.dirname(os.path.realpath(__file__)))
 NGINX_DIR = os.path.join(BASE_DIR.ancestor(1), 'nginx_deployment')
@@ -42,9 +43,8 @@ def remove_virtualenv():
 @task
 def create_virtualenv():
     print(blue('creating {} virtualenv .....'.format(env.virtualenv_name)))
-    run('mkvirtualenv -p python3 {}'.format(env.virtualenv_name))
+    run('mkvirtualenv -p python3 {} --no-site-packages'.format(env.virtualenv_name))
     print(green('{} virtualenv created.'.format(env.virtualenv_name)))
-    print(green(''))
 
 @task
 def clone_bcpp():
@@ -85,17 +85,22 @@ def make_keys_dir():
 
 @task
 def initial_setup():
-        execute(remove_virtualenv)
-        execute(create_virtualenv)
-        execute(clone_bcpp)
-        execute(install_requirements)
-        execute(create_db_or_dropN_create_db)
-        execute(make_keys_dir)
-        execute(migrate)
-        execute(setup_nginx)
+    execute(remove_virtualenv)
+    execute(create_virtualenv)
+    execute(clone_bcpp)
+    execute(install_requirements)
+    execute(create_db_or_dropN_create_db)
+    execute(make_keys_dir)
+    execute(migrate)
+    manage_py('collectstatic --noinput')
+    execute(setup_nginx)
+    execute(setup_gunicorn)
+    execute(stopNstart_nginx_and_gunicorn)
 
 @task
 def setup_gunicorn():
+    with prefix('workon bcpp'):
+        run('pip install gunicorn')
     put(os.path.join(GUNICORN_DIR, 'gunicorn.conf'), PROJECT_DIR)
     with cd(PROJECT_DIR):
         run('mkdir -p logs')
@@ -108,7 +113,17 @@ def setup_nginx():
     sudo("mkdir -p /usr/local/etc/nginx/sites-available")
     put(os.path.join(NGINX_DIR, 'bcpp.conf'), '/usr/local/etc/nginx/sites-available/bcpp.conf')
     with cd('/usr/local/etc/nginx/sites-enabled'):
-            sudo('ln -s /usr/local/etc/nginx/sites-available/bcpp.conf bcpp.conf')
+        sudo('ln -s /usr/local/etc/nginx/sites-available/bcpp.conf bcpp.conf')
+
+@task
+def stopNstart_nginx_and_gunicorn():
+    sudo('nginx -s stop')
+    sudo('nginx')
+    sudo('pkill gunicorn')
+    with cd(PROJECT_DIR):
+        with prefix('workon bcpp'):
+            run('gunicorn -c gunicorn.conf.py bcpp.wsgi --pid /Users/django/source/bcpp/logs/gunicorn.pid --daemon')
+    print(green('nginx & gunicorn restarted.')
 
 @task
 def update_repo():
@@ -116,6 +131,9 @@ def update_repo():
         with cd(PROJECT_DIR):
             run('git pull')
             run('pip install -r requirements.txt -U')
+    execute(setup_nginx)
+    execute(setup_gunicorn)
+    execute(stopNstart_nginx_and_gunicorn)
 
 @task
 def deploy(server=None):
