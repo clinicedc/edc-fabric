@@ -103,6 +103,7 @@ def initial_setup():
     execute(make_keys_dir)
     execute(migrate)
     manage_py('collectstatic --noinput')
+    execute(load_fixtures())
     execute(setup_nginx)
     execute(setup_gunicorn)
     execute(stopNstart_nginx_and_gunicorn)
@@ -157,6 +158,16 @@ def deploy(server=None):
                 execute(update_project)
         except FabricException as e:
             print(e)
+
+@task
+def load_fixtures():
+    managepy('load_crf_lists')
+
+@task
+def managepy(command=None, config=None):
+    with cd(PROJECT_DIR):
+        with prefix('workon bcpp'):
+            sudo('./manage.py {command}'.format(command=command))
 
 
 def chmod(permission, file, dir=False):
