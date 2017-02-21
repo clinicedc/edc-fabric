@@ -9,7 +9,7 @@ Clone fabric repo
 
 ```
 mkdir -p source ; cd source
-git clone git+https://github.com/botswana-harvard/bcpp-fabric.git
+git clone https://github.com/botswana-harvard/bcpp-fabric.git
 ```
 Install requirements
 
@@ -28,10 +28,10 @@ vi fabfile.py
 change 'env.update_repo = None' to env.update_repo = False
 ```
 
-Then specify host to deploy
+Then specify details of the host to deploy
 
 ```
-cd ~/source/bcpp-fabric
+cd ~/source/bcpp-fabric/bcpp-fabric
 
 vi hosts.py
 HOSTS = {
@@ -42,7 +42,7 @@ HOSTS = {
 Start Deployment
 
 ```
-cd ~/source/bcpp-fabric
+cd ~/source/bcpp-fabric/bcpp-fabric
 workon bcpp-fabric
 fab deploy
 
