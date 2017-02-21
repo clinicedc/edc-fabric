@@ -20,10 +20,6 @@ env.hosts = [host for host in hosts.keys()]
 env.passwords = hosts
 env.usergroup = 'django'
 env.account = 'django'
-env.custom_config = False
-
-if custom_config:
-    
 
 env.virtualenv_name = 'bcpp'
 env.source_dir = '/Users/django/source'
@@ -37,36 +33,74 @@ if env.update_repo is None:
 env.create_db = False
 env.drop_and_create_db = True
 
+env.custom_config_is = False
+
+@task
+def custom_config():
+    if confirm('Do you want to customize deployment y/n'.format('bcpp'),
+                               default=True):
+        env.custom_config_is = True
+
 
 class FabricException(Exception):
     pass
 
 @task
 def remove_virtualenv():
-    result = run('rmvirtualenv {}'.format(env.virtualenv_name))
-    if result.succeeded:
-        print(blue('removing {} virtualenv .....'.format(env.virtualenv_name)))
-        print(green('{} virtualenv removed.'.format(env.virtualenv_name)))
+    def _setup():
+        result = run('rmvirtualenv {}'.format(env.virtualenv_name))
+        if result.succeeded:
+            print(blue('removing {} virtualenv .....'.format(env.virtualenv_name)))
+            print(green('{} virtualenv removed.'.format(env.virtualenv_name)))
+        else:
+            error(result)
+    if env.custom_config_is:
+        if confirm('Do you want to remove virtual enviroment {} y/n?'.format('bcpp'),
+                                   default=True):
+            _setup()
     else:
-        error(result)
+        _setup()
 
 @task
 def create_virtualenv():
-    print(blue('creating {} virtualenv .....'.format(env.virtualenv_name)))
-    run('mkvirtualenv -p python3 {} --no-site-packages'.format(env.virtualenv_name))
-    print(green('{} virtualenv created.'.format(env.virtualenv_name)))
+    def _setup():
+        print(blue('creating {} virtualenv .....'.format(env.virtualenv_name)))
+        run('mkvirtualenv -p python3 {}'.format(env.virtualenv_name))
+        print(green('{} virtualenv created.'.format(env.virtualenv_name)))
+
+    if env.custom_config_is:
+        if confirm('Do you want to create virtual environment {} y/n?'.format('bcpp'),
+                                       default=True):
+            _setup()
+    else:
+        _setup()
 
 @task
 def clone_bcpp():
-    run('mkdir -p {}'.format(env.source_dir))
-    with cd(env.source_dir):
-        run('git clone https://github.com/botswana-harvard/bcpp.git')
+    def _setup():
+        run('mkdir -p {}'.format(env.source_dir))
+        with cd(env.source_dir):
+            run('git clone https://github.com/botswana-harvard/bcpp.git')
+
+    if env.custom_config_is:
+        if confirm('Do you want to clone {} y/n?'.format('bcpp'),
+                                       default=True):
+            _setup()
+    else:
+        _setup()
 
 @task
 def install_requirements():
-    with cd(PROJECT_DIR):
-        with prefix('workon bcpp'):
-            run('pip install -r requirements.txt -U')
+    def _setup():
+        with cd(PROJECT_DIR):
+            with prefix('workon bcpp'):
+                run('pip install -r requirements.txt -U')
+    if env.custom_config_is:
+        if confirm('Do you want to install the requirements y/n?'.format('bcpp'),
+                                       default=True):
+            _setup()
+    else:
+        _setup()
 
 @task
 def create_db_or_dropN_create_db():
@@ -82,15 +116,31 @@ def create_db_or_dropN_create_db():
 
 @task
 def fake_migrations():
-    execute(manage_py, 'migrate --fake')
+    def _setup():
+        execute(manage_py, 'migrate --fake')
+
+    if env.custom_config_is:
+        if confirm('Do you want to run fake migrations y/n?'.format('bcpp'),
+                                       default=True):
+            _setup()
+    else:
+        _setup()
 
 @task
 def migrate():
-    with prefix('workon bcpp'):
-        with cd(PROJECT_DIR):
-            run('python manage.py makemigrations plot household member bcpp_subject')
-            run('python manage.py makemigrations')
-            run('python manage.py migrate')
+    def _setup():
+        with prefix('workon bcpp'):
+            with cd(PROJECT_DIR):
+                run('python manage.py makemigrations plot household member bcpp_subject')
+                run('python manage.py makemigrations')
+                run('python manage.py migrate')
+
+    if env.custom_config_is:
+        if confirm('Do you want to run migrations y/n?'.format('bcpp'),
+                                       default=True):
+            _setup()
+    else:
+        _setup()
 
 @task
 def make_keys_dir():
@@ -128,34 +178,60 @@ def setup_gunicorn():
 
 @task
 def setup_nginx():
-    sudo("mkdir -p /usr/local/etc/nginx/sites-available")
-    sudo("mkdir -p /usr/local/etc/nginx/sites-enabled")
-    chmod('755', '/usr/local/etc/nginx/sites-available', dir=True)
-    put(os.path.join(NGINX_DIR, 'bcpp.conf'), '/usr/local/etc/nginx/sites-available/bcpp.conf', use_sudo=True)
-    with cd('/usr/local/etc/nginx/sites-enabled'):
-        sudo('ln -s /usr/local/etc/nginx/sites-available/bcpp.conf bcpp.conf')
-    print(green('nginx setup completed.'))
+    def _setup():
+        sudo("mkdir -p /usr/local/etc/nginx/sites-available")
+        sudo("mkdir -p /usr/local/etc/nginx/sites-enabled")
+        chmod('755', '/usr/local/etc/nginx/sites-available', dir=True)
+        put(os.path.join(NGINX_DIR, 'bcpp.conf'),
+            '/usr/local/etc/nginx/sites-available/bcpp.conf', use_sudo=True)
+        with cd('/usr/local/etc/nginx/sites-enabled'):
+            sudo('ln -s /usr/local/etc/nginx/sites-available/bcpp.conf bcpp.conf')
+        print(green('nginx setup completed.'))
+
+    if env.custom_config_is:
+        if confirm('Do you want to setup nginx y/n?'.format('bcpp'),
+                                       default=True):
+            _setup()
+    else:
+        _setup()
 
 @task
 def stopNstart_nginx_and_gunicorn():
-    sudo('nginx -s stop')
-    sudo('nginx')
-    sudo('pgrep gunicorn | xargs kill -9')
-    with cd(PROJECT_DIR):
-        with prefix('workon bcpp'):
-            run('gunicorn -c gunicorn.conf.py bcpp.wsgi --pid /Users/django/source/bcpp/logs/gunicorn.pid --daemon')
-    print(green('nginx & gunicorn restarted.'))
+    def _setup():
+        sudo('nginx -s stop')
+        sudo('nginx')
+        sudo('pgrep gunicorn | xargs kill -9')
+        with cd(PROJECT_DIR):
+            with prefix('workon bcpp'):
+                run('gunicorn -c gunicorn.conf.py bcpp.wsgi --pid /Users/django/source/bcpp/logs/gunicorn.pid --daemon')
+        print(green('nginx & gunicorn restarted.'))
+
+    if env.custom_config_is:
+        if confirm('Do you want to stop and start nginx y/n?'.format('bcpp'),
+                                       default=True):
+            _setup()
+    else:
+        _setup()
 
 @task
 def update_project():
-    with prefix('workon bcpp'):
-        with cd(PROJECT_DIR):
-            run('git pull')
-            run('pip install -r requirements.txt -U')
+    def _setup():
+        with prefix('workon bcpp'):
+            with cd(PROJECT_DIR):
+                run('git pull')
+                run('pip install -r requirements.txt -U')
+
+    if env.custom_config_is:
+        if confirm('Do you want to stop and start nginx y/n?'.format('bcpp'),
+                                       default=True):
+            _setup()
+    else:
+        _setup()
 
 @task
 def deploy(server=None):
     with settings(abort_exception=FabricException):
+        execute(custom_config)
         try:
             if not env.update_repo:
                 execute(initial_setup)
@@ -166,12 +242,7 @@ def deploy(server=None):
 
 @task
 def load_fixtures():
-    if env.custom_config:
-        if confirm('Are you sure you want create a new database {} y/n'.format('bcpp'),
-                               default=False)
-            managepy('load_crf_lists')
-    else:
-         managepy('load_crf_lists')
+    pass
 
 @task
 def managepy(command=None, config=None):
