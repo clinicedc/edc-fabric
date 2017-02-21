@@ -149,6 +149,12 @@ def make_keys_dir():
         run('mkdir  -p media/edc_map')
 
 @task
+def collectstatic():
+    with cd(PROJECT_DIR):
+        with prefix('workon bcpp'):
+            run('python manage.py collectstatic')
+
+@task
 def initial_setup():
     execute(remove_virtualenv)
     execute(create_virtualenv)
@@ -157,8 +163,8 @@ def initial_setup():
     execute(create_db_or_dropN_create_db)
     execute(make_keys_dir)
     execute(migrate)
-    manage_py('collectstatic --noinput')
-    execute(load_fixtures())
+    execute(collectstatic)
+    execute(load_fixtures)
     execute(setup_nginx)
     execute(setup_gunicorn)
     execute(stopNstart_nginx_and_gunicorn)
