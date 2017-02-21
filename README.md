@@ -20,12 +20,10 @@ pip install -r requirements.txt
 
 First time deployment.
 
-1. clone new source project
-2. setup nginx 
-3. setup gunicorn
+Follow the steps that follow;
 
 ```
-cd ~/source/bcpp-fabric
+cd ~/source/bcpp-fabric/bcpp-fabric
 vi fabfile.py 
 change 'env.update_repo = None' to env.update_repo = False
 ```
