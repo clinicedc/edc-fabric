@@ -20,6 +20,10 @@ env.hosts = [host for host in hosts.keys()]
 env.passwords = hosts
 env.usergroup = 'django'
 env.account = 'django'
+env.custom_config = False
+
+if custom_config:
+    
 
 env.virtualenv_name = 'bcpp'
 env.source_dir = '/Users/django/source'
@@ -67,13 +71,14 @@ def install_requirements():
 @task
 def create_db_or_dropN_create_db():
     if env.drop_and_create_db:
-        if confirm('Are you sure you want to drop database {} and create it? y/n'.format('bcpp'),
+        if confirm('Are you sure you want create a new database {} y/n'.format('bcpp'),
                                default=False):
             with settings(abort_exception=FabricException):
                 try:
                     run("mysql -uroot -p -Bse 'drop database edc; create database edc character set utf8;'")
                 except FabricException:
                     run("mysql -uroot -p -Bse 'create database edc character set utf8;'")
+    print(green('edc database has been created.'))
 
 @task
 def fake_migrations():
@@ -161,7 +166,12 @@ def deploy(server=None):
 
 @task
 def load_fixtures():
-    managepy('load_crf_lists')
+    if env.custom_config:
+        if confirm('Are you sure you want create a new database {} y/n'.format('bcpp'),
+                               default=False)
+            managepy('load_crf_lists')
+    else:
+         managepy('load_crf_lists')
 
 @task
 def managepy(command=None, config=None):
