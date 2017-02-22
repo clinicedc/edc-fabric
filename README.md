@@ -54,9 +54,12 @@ Update existing project.
 1. update existing source project only.
 
 ```
+cd ~/source/bcpp-fabric/bcpp-fabric
+vi fabfile.py 
 change 'env.update_repo = None' to env.update_repo = True
 ```
 Run deployment
 ```
+cd ~/source/bcpp-fabric/bcpp-fabric
 fab deploy
 ```
