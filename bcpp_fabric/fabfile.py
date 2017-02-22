@@ -96,7 +96,7 @@ def install_requirements():
             with prefix('workon bcpp'):
                 run('pip install -r requirements.txt -U')
     if env.custom_config_is:
-        if confirm('Do you want to install the requirements y/n?'.format('bcpp'),
+        if confirm('Do you want to install the {} requirements y/n?'.format('bcpp'),
                                        default=True):
             _setup()
     else:
@@ -105,14 +105,14 @@ def install_requirements():
 @task
 def create_db_or_dropN_create_db():
     if env.drop_and_create_db:
-        if confirm('Are you sure you want create a new database {} y/n'.format('bcpp'),
+        if confirm('Are you sure you want create a new {} database  y/n'.format('edc'),
                                default=False):
             with settings(abort_exception=FabricException):
                 try:
                     run("mysql -uroot -p -Bse 'drop database edc; create database edc character set utf8;'")
+                    print(green('edc database has been created.'))
                 except FabricException:
                     run("mysql -uroot -p -Bse 'create database edc character set utf8;'")
-    print(green('edc database has been created.'))
 
 @task
 def fake_migrations():
@@ -167,7 +167,7 @@ def initial_setup():
     execute(collectstatic)
     # execute(load_fixtures)
     execute(setup_nginx)
-    execute(setup_guniicorn)
+    execute(setup_gunicorn)
     execute(stopNstart_nginx_and_gunicorn)
 
 @task
