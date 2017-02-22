@@ -162,11 +162,12 @@ def initial_setup():
     execute(install_requirements)
     execute(create_db_or_dropN_create_db)
     execute(make_keys_dir)
+    execute(mysql_tzinfo)
     execute(migrate)
     execute(collectstatic)
-    execute(load_fixtures)
+    # execute(load_fixtures)
     execute(setup_nginx)
-    execute(setup_gunicorn)
+    execute(setup_guniicorn)
     execute(stopNstart_nginx_and_gunicorn)
 
 @task
@@ -188,10 +189,15 @@ def setup_nginx():
         sudo("mkdir -p /usr/local/etc/nginx/sites-available")
         sudo("mkdir -p /usr/local/etc/nginx/sites-enabled")
         chmod('755', '/usr/local/etc/nginx/sites-available', dir=True)
+        put(os.path.join(NGINX_DIR, 'nginx.conf'),
+            '/usr/local/etc/nginx/nginx.conf', use_sudo=True)
         put(os.path.join(NGINX_DIR, 'bcpp.conf'),
             '/usr/local/etc/nginx/sites-available/bcpp.conf', use_sudo=True)
         with cd('/usr/local/etc/nginx/sites-enabled'):
-            sudo('ln -s /usr/local/etc/nginx/sites-available/bcpp.conf bcpp.conf')
+            try:
+                sudo('ln -s /usr/local/etc/nginx/sites-available/bcpp.conf bcpp.conf')
+            except:
+                print(blue('nginx symbolic already created.'))
         print(green('nginx setup completed.'))
 
     if env.custom_config_is:
@@ -246,9 +252,15 @@ def deploy(server=None):
         except FabricException as e:
             print(e)
 
+@task 
+def mysql_tzinfo():
+    run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
+
 @task
 def load_fixtures():
-    pass
+    with cd(PROJECT_DIR):
+        with prefix('workon bcpp'):
+            run('./manage.py load_fixtures')
 
 @task
 def managepy(command=None, config=None):
