@@ -62,4 +62,11 @@ Run deployment
 ```
 cd ~/source/bcpp-fabric/bcpp-fabric
 fab deploy
+
+```
+
+Access the system
+
+```
+Start server at http://127.0.0.1/
 ```

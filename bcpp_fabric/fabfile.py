@@ -218,7 +218,7 @@ def initial_setup():
     execute(mysql_tzinfo)
     execute(migrate)
     execute(collectstatic)
-    execute(load_fixtures)
+#     execute(load_fixtures)
     execute(setup_nginx)
     execute(setup_gunicorn)
     execute(stopNstart_nginx_and_gunicorn)
@@ -263,12 +263,19 @@ def setup_nginx():
         _setup()
 
 
+def stop_nginxN_gunicorn():
+    try:
+        sudo('nginx -s stop')
+        sudo('pgrep gunicorn | xargs kill -9')
+    except:
+        pass
+
+
 @task
 def stopNstart_nginx_and_gunicorn():
     def _setup():
-        sudo('nginx -s stop')
+        stop_nginxN_gunicorn()
         sudo('nginx')
-        sudo('pgrep gunicorn | xargs kill -9')
         with cd(PROJECT_DIR):
             with prefix('workon bcpp'):
                 run('gunicorn -c gunicorn.conf.py bcpp.wsgi --pid /Users/django/source/bcpp/logs/gunicorn.pid --daemon')
@@ -319,7 +326,7 @@ def mysql_tzinfo():
 def load_fixtures():
     with cd(PROJECT_DIR):
         with prefix('workon bcpp'):
-            run('./manage.py load_fixtures')
+            run(' python  manage.py load_fixtures')
 
 
 @task
