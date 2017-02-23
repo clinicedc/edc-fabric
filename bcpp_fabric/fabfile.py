@@ -5,8 +5,8 @@ import os
 
 from fabric.api import *
 from fabric.utils import error, warn
-from fabric.contrib.files import exists
-from fabric.colors import green, red, blue
+# from fabric.contrib.files import exists
+from fabric.colors import green, blue
 from fabric.contrib.console import confirm
 
 from hosts import HOSTS
@@ -28,22 +28,24 @@ PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
 env.update_repo = False
 
 if env.update_repo is None:
-    raise ("env.update_repo cannot be None, Set  env.update_repo = True for update. Set env.update_repo = False for initial deployment.")
+    raise ("env.update_repo cannot be None, Set env.update_repo = True for update. Set env.update_repo = False for initial deployment.")
 
 env.create_db = False
 env.drop_and_create_db = True
 
 env.custom_config_is = False
 
+
 @task
 def custom_config():
     if confirm('Do you want to customize deployment y/n'.format('bcpp'),
-                               default=True):
+               default=True):
         env.custom_config_is = True
 
 
 class FabricException(Exception):
     pass
+
 
 @task
 def remove_virtualenv():
@@ -56,10 +58,11 @@ def remove_virtualenv():
             error(result)
     if env.custom_config_is:
         if confirm('Do you want to remove virtual enviroment {} y/n?'.format('bcpp'),
-                                   default=True):
+                   default=True):
             _setup()
     else:
         _setup()
+
 
 @task
 def create_virtualenv():
@@ -70,10 +73,11 @@ def create_virtualenv():
 
     if env.custom_config_is:
         if confirm('Do you want to create virtual environment {} y/n?'.format('bcpp'),
-                                       default=True):
+                   default=True):
             _setup()
     else:
         _setup()
+
 
 @task
 def clone_bcpp():
@@ -84,10 +88,11 @@ def clone_bcpp():
 
     if env.custom_config_is:
         if confirm('Do you want to clone {} y/n?'.format('bcpp'),
-                                       default=True):
+                   default=True):
             _setup()
     else:
         _setup()
+
 
 @task
 def install_requirements():
@@ -97,16 +102,17 @@ def install_requirements():
                 run('pip install -r requirements.txt -U')
     if env.custom_config_is:
         if confirm('Do you want to install the {} requirements y/n?'.format('bcpp'),
-                                       default=True):
+                   default=True):
             _setup()
     else:
         _setup()
+
 
 @task
 def create_db_or_dropN_create_db():
     if env.drop_and_create_db:
         if confirm('Are you sure you want create a new {} database  y/n'.format('edc'),
-                               default=False):
+                   default=False):
             with settings(abort_exception=FabricException):
                 try:
                     run("mysql -uroot -p -Bse 'drop database edc; create database edc character set utf8;'")
@@ -114,17 +120,19 @@ def create_db_or_dropN_create_db():
                 except FabricException:
                     run("mysql -uroot -p -Bse 'create database edc character set utf8;'")
 
+
 @task
 def fake_migrations():
     def _setup():
-        execute(manage_py, 'migrate --fake')
+        run(managepy, 'migrate --fake')
 
     if env.custom_config_is:
         if confirm('Do you want to run fake migrations y/n?'.format('bcpp'),
-                                       default=True):
+                   default=True):
             _setup()
     else:
         _setup()
+
 
 @task
 def migrate():
@@ -137,10 +145,11 @@ def migrate():
 
     if env.custom_config_is:
         if confirm('Do you want to run migrations y/n?'.format('bcpp'),
-                                       default=True):
+                   default=True):
             _setup()
     else:
         _setup()
+
 
 @task
 def make_keys_dir():
@@ -148,14 +157,54 @@ def make_keys_dir():
         run('mkdir  -p crypto_fields')
         run('mkdir  -p media/edc_map')
 
+
 @task
 def collectstatic():
     with cd(PROJECT_DIR):
         with prefix('workon bcpp'):
             run('python manage.py collectstatic')
 
+
+@task
+def check_hostnames():
+    last_bit = ''
+    for digit in hostname()[0]:
+        if digit.isdigit():
+            last_bit += str(digit)
+    try:
+        id = int(last_bit)
+        if id < 10:
+            id += 80
+            print(green("The device id: {}".format(id)))
+            return id
+        return id
+    except ValueError:
+        raise ValueError('{0} is not an expected hostname'.format(hostname()[0]))
+
+
+def hostname():
+    hostname = sudo('hostname')
+    return (hostname, env.host,)
+
+
+@task
+def transfer_db():
+    #dump
+    with cd('/Users/django/Desktop/'):
+        run('mysqldump -uroot -pcc3721b edc -r file.sql')
+
+
+@task
+def restore_db():
+    with cd('/Users/django/Desktop/'):
+        run('tar -xvzf bhp066_master_201601191025.sql.tar.gz')
+        run("mysql -uroot -pcc3721b -Bse 'drop database bhp066; create database bhp066;SET GLOBAL max_allowed_packet=1073741824;'")
+        run("mysql -uroot -pcc3721b bhp066 < bhp066_master_201601191025.sql")
+
+
 @task
 def initial_setup():
+    execute(check_hostnames)
     execute(remove_virtualenv)
     execute(create_virtualenv)
     execute(clone_bcpp)
@@ -165,10 +214,11 @@ def initial_setup():
     execute(mysql_tzinfo)
     execute(migrate)
     execute(collectstatic)
-    # execute(load_fixtures)
+    execute(load_fixtures)
     execute(setup_nginx)
     execute(setup_gunicorn)
     execute(stopNstart_nginx_and_gunicorn)
+
 
 @task
 def setup_gunicorn():
@@ -182,6 +232,7 @@ def setup_gunicorn():
                 run('touch gunicorn-access.log')
                 run('touch gunicorn-error.log')
     print(green('gunicorn setup completed.'))
+
 
 @task
 def setup_nginx():
@@ -202,10 +253,11 @@ def setup_nginx():
 
     if env.custom_config_is:
         if confirm('Do you want to setup nginx y/n?'.format('bcpp'),
-                                       default=True):
+                   default=True):
             _setup()
     else:
         _setup()
+
 
 @task
 def stopNstart_nginx_and_gunicorn():
@@ -220,10 +272,11 @@ def stopNstart_nginx_and_gunicorn():
 
     if env.custom_config_is:
         if confirm('Do you want to stop and start nginx y/n?'.format('bcpp'),
-                                       default=True):
+                   default=True):
             _setup()
     else:
         _setup()
+
 
 @task
 def update_project():
@@ -235,13 +288,14 @@ def update_project():
 
     if env.custom_config_is:
         if confirm('Do you want to stop and start nginx y/n?'.format('bcpp'),
-                                       default=True):
+                   default=True):
             _setup()
     else:
         _setup()
 
+
 @task
-def deploy(server=None):
+def deploy():
     with settings(abort_exception=FabricException):
         execute(custom_config)
         try:
@@ -252,9 +306,10 @@ def deploy(server=None):
         except FabricException as e:
             print(e)
 
-@task 
+@task
 def mysql_tzinfo():
     run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
+
 
 @task
 def load_fixtures():
@@ -262,22 +317,23 @@ def load_fixtures():
         with prefix('workon bcpp'):
             run('./manage.py load_fixtures')
 
+
 @task
-def managepy(command=None, config=None):
+def managepy(command=None):
     with cd(PROJECT_DIR):
         with prefix('workon bcpp'):
             sudo('./manage.py {command}'.format(command=command))
 
 
-def chmod(permission, file, dir=False):
-    if dir:
+def chmod(permission, file, dirr=False):
+    if dirr:
         sudo("chmod -R %s %s" % (permission, file))
     else:
         sudo("chmod %s %s" % (permission, file))
 
 
-def chown(name, dir=True):
-    if dir:
+def chown(name, dirr=True):
+    if dirr:
         sudo('chown -R {account}:staff {filename}'.format(account=env.account, filename=name))
     else:
         sudo('chown {account}:staff {filename}'.format(account=env.account, filename=name))
