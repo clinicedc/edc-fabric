@@ -188,8 +188,12 @@ def hostname():
 
 
 @task
-def transfer_db():
-    #dump
+def tranfer_db():
+    pass
+
+
+@task
+def create_db_dump():
     with cd('/Users/django/Desktop/'):
         run('mysqldump -uroot -pcc3721b edc -r file.sql')
 
@@ -227,7 +231,7 @@ def setup_gunicorn():
     put(os.path.join(GUNICORN_DIR, 'gunicorn.conf.py'), PROJECT_DIR, use_sudo=True)
     with cd(PROJECT_DIR):
         run('mkdir -p logs')
-        chmod('755', os.path.join(PROJECT_DIR, 'logs'), dir=True)
+        chmod('755', os.path.join(PROJECT_DIR, 'logs'), dirr=True)
         with cd(os.path.join(PROJECT_DIR, 'logs')):
                 run('touch gunicorn-access.log')
                 run('touch gunicorn-error.log')
@@ -239,7 +243,7 @@ def setup_nginx():
     def _setup():
         sudo("mkdir -p /usr/local/etc/nginx/sites-available")
         sudo("mkdir -p /usr/local/etc/nginx/sites-enabled")
-        chmod('755', '/usr/local/etc/nginx/sites-available', dir=True)
+        chmod('755', '/usr/local/etc/nginx/sites-available', dirr=True)
         put(os.path.join(NGINX_DIR, 'nginx.conf'),
             '/usr/local/etc/nginx/nginx.conf', use_sudo=True)
         put(os.path.join(NGINX_DIR, 'bcpp.conf'),
