@@ -21,6 +21,14 @@ env.passwords = hosts
 env.usergroup = 'django'
 env.account = 'django'
 
+env.server_ssh_key_location = 'django@10.113.201.134:~/'
+
+a_dir = a_file = "{0}/{1}".format
+
+FAB_DIR = 'fabric'
+
+FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
+
 env.virtualenv_name = 'bcpp'
 env.source_dir = '/Users/django/source'
 PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
@@ -122,6 +130,28 @@ def create_db_or_dropN_create_db():
 
 
 @task
+def dump_backup():
+    with cd(env.source_dir):
+        sudo('mysqldump -u root -p%s %s > %s' % (env.mysql_root_passwd, env.dbname, 'backup.sql'))
+
+
+@task
+def dump_restore(restore_sql="restore_dump.sql"):
+    put(a_file(FAB_SQL_DIR, env.base_sql), '%s/restore_dump.sql' % env.source_dir)
+    with cd(env.source_dir):
+        execute_sql_file(restore_sql)
+
+
+def execute_sql_file(sql_file):
+    sudo('mysql -u root -p%s %s < %s' % (env.mysql_root_passwd, env.dbname, sql_file))
+
+
+@task
+def transfer_db(file_transfered):
+    run('scp {} {}:{}'.format(file_transfered, env.hosts, env.source_dir))
+
+
+@task
 def fake_migrations():
     def _setup():
         run(managepy, 'migrate --fake')
@@ -188,25 +218,6 @@ def hostname():
 
 
 @task
-def tranfer_db():
-    pass
-
-
-@task
-def create_db_dump():
-    with cd('/Users/django/Desktop/'):
-        run('mysqldump -uroot -pcc3721b edc -r file.sql')
-
-
-@task
-def restore_db():
-    with cd('/Users/django/Desktop/'):
-        run('tar -xvzf bhp066_master_201601191025.sql.tar.gz')
-        run("mysql -uroot -pcc3721b -Bse 'drop database bhp066; create database bhp066;SET GLOBAL max_allowed_packet=1073741824;'")
-        run("mysql -uroot -pcc3721b bhp066 < bhp066_master_201601191025.sql")
-
-
-@task
 def initial_setup():
     execute(check_hostnames)
     execute(remove_virtualenv)
@@ -216,7 +227,7 @@ def initial_setup():
     execute(create_db_or_dropN_create_db)
     execute(make_keys_dir)
     execute(mysql_tzinfo)
-    execute(migrate)
+#     execute(migrate)
     execute(collectstatic)
 #     execute(load_fixtures)
     execute(setup_nginx)
@@ -316,6 +327,7 @@ def deploy():
                 execute(update_project)
         except FabricException as e:
             print(e)
+
 
 @task
 def mysql_tzinfo():
