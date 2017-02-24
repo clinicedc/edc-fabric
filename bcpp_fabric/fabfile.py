@@ -196,18 +196,25 @@ def collectstatic():
 
 
 @task
+def staticjs_reverse():
+    with cd(PROJECT_DIR):
+        with prefix('workon bcpp'):
+            run('python manage.py collectstatic_js_reverse')
+
+
+@task
 def check_hostnames():
     last_bit = ''
     for digit in hostname()[0]:
         if digit.isdigit():
             last_bit += str(digit)
     try:
-        id = int(last_bit)
-        if id < 10:
-            id += 80
-            print(green("The device id: {}".format(id)))
-            return id
-        return id
+        host_id = int(last_bit)
+        if host_id < 10:
+            host_id += 80
+            print(green("The device id: {}".format(host_id)))
+            return host_id
+        return host_id
     except ValueError:
         raise ValueError('{0} is not an expected hostname'.format(hostname()[0]))
 
