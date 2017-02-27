@@ -6,17 +6,19 @@ import os
 from fabric.api import *
 from fabric.utils import error, warn
 # from fabric.contrib.files import exists
-from fabric.colors import green, blue
+from fabric.colors import green, blue, red
 from fabric.contrib.console import confirm
 
-from hosts import HOSTS
+from hosts import HOSTS, CLIENTS
 
 BASE_DIR = Path(os.path.dirname(os.path.realpath(__file__)))
 NGINX_DIR = os.path.join(BASE_DIR.ancestor(1), 'nginx_deployment')
 GUNICORN_DIR = NGINX_DIR
 hosts = HOSTS
+clients = CLIENTS
 
 env.hosts = [host for host in hosts.keys()]
+env.clients = [clients for clients in clients.keys()]
 env.passwords = hosts
 env.usergroup = 'django'
 env.account = 'django'
@@ -26,6 +28,7 @@ env.server_ssh_key_location = 'django@10.113.201.134:~/'
 a_dir = a_file = "{0}/{1}".format
 
 FAB_DIR = 'fabric'
+env.keys = 'crypto_fields.tar.gz'
 
 FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
 
@@ -33,7 +36,7 @@ env.virtualenv_name = 'bcpp'
 env.source_dir = '/Users/django/source'
 PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
 
-env.update_repo = False
+env.update_repo = True
 
 if env.update_repo is None:
     raise ("env.update_repo cannot be None, Set env.update_repo = True for update. Set env.update_repo = False for initial deployment.")
@@ -132,7 +135,7 @@ def create_db_or_dropN_create_db():
 @task
 def dump_backup():
     with cd(env.source_dir):
-        sudo('mysqldump -u root -p%s %s > %s' % (env.mysql_root_passwd, env.dbname, 'backup.sql'))
+        sudo('mysqldump -uroot -p edc -r %s' % (env.dbname))
 
 
 @task
@@ -147,8 +150,17 @@ def execute_sql_file(sql_file):
 
 
 @task
-def transfer_db(file_transfered):
-    run('scp {} {}:{}'.format(file_transfered, env.hosts, env.source_dir))
+def transfer_db(db='edc.sql'):
+    with cd(env.source_dir):
+        try:
+            run('rsync -avzP {} {}:{}'.format(db, env.clients[0], env.source_dir))
+            print(green('Database file sent.'))
+        except:
+            print(red('file tranfer failed'))
+
+
+def specify_db_tranfered():
+    print(env.clients[0])
 
 
 @task
@@ -186,6 +198,28 @@ def make_keys_dir():
     with cd(PROJECT_DIR):
         run('mkdir  -p crypto_fields')
         run('mkdir  -p media/edc_map')
+
+
+@task
+def compress_keys():
+    with cd(PROJECT_DIR):
+        run('tar -czvf crypto_fields.tar.gz {}'.format(PROJECT_DIR))
+
+
+@task
+def tranfer_compressed_keys():
+    with cd(env.source_dir):
+        try:
+            run('scp {} {}:{}'.format(env.keys, env.clients[0], env.source_dir))
+            print(green('file sent.'))
+        except:
+            print(red('file transfer failed'))
+
+
+@task
+def uncompressed_keys():
+    with cd(env.source_dir):
+        run('tar xopf {}'.format(env.keys))
 
 
 @task
@@ -234,6 +268,7 @@ def hostname():
 @task
 def initial_setup():
     execute(check_hostnames)
+    execute(disable_apache_on_startup)
     execute(remove_virtualenv)
     execute(create_virtualenv)
     execute(clone_bcpp)
@@ -244,8 +279,9 @@ def initial_setup():
     execute(collectstatic)
     execute(setup_nginx)
     execute(setup_gunicorn)
-    execute(stopNstart_nginx_and_gunicorn)
-    excecute(load_fixtures)
+    execute(load_fixtures)
+    execute(staticjs_reverse)
+    execute(start_webserver)
 
 
 @task
@@ -287,7 +323,7 @@ def setup_nginx():
         _setup()
 
 
-def stop_nginxN_gunicorn():
+def stop_webserver():
     try:
         sudo('nginx -s stop')
         sudo('pgrep gunicorn | xargs kill -9')
@@ -296,9 +332,9 @@ def stop_nginxN_gunicorn():
 
 
 @task
-def stopNstart_nginx_and_gunicorn():
+def start_webserver():
     def _setup():
-        stop_nginxN_gunicorn()
+        stop_webserver()
         sudo('nginx')
         with cd(PROJECT_DIR):
             with prefix('workon bcpp'):
@@ -343,15 +379,45 @@ def deploy():
 
 
 @task
-def mysql_tzinfo():
-    run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
+def deployment_activity_log_files():
+    for host in hostname():
+        with cd(PROJECT_DIR):
+            file = run('touch {}.log'.format(host))
+            put(file, PROJECT_DIR)
 
 
 @task
-def load_fixtures():
-    with cd(PROJECT_DIR):
-        with prefix('workon bcpp'):
-            run(' python  manage.py load_fixtures')
+def checkdeployment():
+    with show('output', 'warnings', 'running'):
+        try:
+            startlog()
+            log('task done')
+        except Exception:
+            print("%s host is down :: %s" % (env.hosts, str(Exception)))
+            log('bad host %s::%s' % (env.hosts, str(Exception)))
+
+
+def startlog():
+    file = run('touch {}.log'.format(host))
+    put(file, PROJECT_DIR)
+    logfile = open(file, "a+")
+    logfile.close()
+
+
+def log(msg):
+    logfile = open(startlog.file, "a+")
+    logfile.write(msg + "\n")
+    logfile.close()
+
+
+@task
+def disable_apache_on_startup():
+    sudo('launchctl unload -w /System/Library/LaunchDaemons/org.apache.httpd.plist')
+
+
+@task
+def mysql_tzinfo():
+    run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
 
 
 @task
