@@ -203,6 +203,13 @@ def staticjs_reverse():
 
 
 @task
+def load_fixtures():
+    with cd(PROJECT_DIR):
+        with prefix('workon bcpp'):
+            run('python manage.py load_fixtures')
+
+
+@task
 def check_hostnames():
     last_bit = ''
     for digit in hostname()[0]:
@@ -234,12 +241,11 @@ def initial_setup():
     execute(create_db_or_dropN_create_db)
     execute(make_keys_dir)
     execute(mysql_tzinfo)
-#     execute(migrate)
     execute(collectstatic)
-#     execute(load_fixtures)
     execute(setup_nginx)
     execute(setup_gunicorn)
     execute(stopNstart_nginx_and_gunicorn)
+    excecute(load_fixtures)
 
 
 @task
