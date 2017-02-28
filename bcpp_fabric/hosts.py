@@ -5,5 +5,5 @@ HOSTS = {
 }
 
 CLIENTS = {
-    'django@10.113.201.67': 'zaGh4hei',
+    'django@10.113.200.249': 'equ9aoVi',
     }

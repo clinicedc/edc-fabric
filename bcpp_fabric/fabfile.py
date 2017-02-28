@@ -20,8 +20,10 @@ clients = CLIENTS
 env.hosts = [host for host in hosts.keys()]
 env.clients = [clients for clients in clients.keys()]
 env.passwords = hosts
+env.database_file = 'edc_to_transfer'
 env.usergroup = 'django'
 env.account = 'django'
+env.mysql_root_passwd = 'cc3721b'
 
 env.server_ssh_key_location = 'django@10.113.201.134:~/'
 
@@ -139,24 +141,27 @@ def dump_backup():
 
 
 @task
-def dump_restore(restore_sql="restore_dump.sql"):
-    put(a_file(FAB_SQL_DIR, env.base_sql), '%s/restore_dump.sql' % env.source_dir)
-    with cd(env.source_dir):
-        execute_sql_file(restore_sql)
+def restore_database():
+    execute(transfer_db)
+    with cd(PROJECT_DIR):
+        execute_sql_file(env.database_file)
 
 
 def execute_sql_file(sql_file):
-    sudo('mysql -u root -p%s %s < %s' % (env.mysql_root_passwd, env.dbname, sql_file))
+    try:
+        sudo('mysql -uroot -p%s edc < %s' % (env.mysql_root_passwd, sql_file))
+    except FabricException as e:
+        print(red('Failed to restore database {} Got {}'.format(sql_file, e)))
 
 
 @task
-def transfer_db(db='edc.sql'):
+def transfer_db():
     with cd(env.source_dir):
         try:
-            run('rsync -avzP {} {}:{}'.format(db, env.clients[0], env.source_dir))
+            run('rsync -avz --progress {} {}:{}'.format(env.database_file, env.clients[0], PROJECT_DIR))
             print(green('Database file sent.'))
-        except:
-            print(red('file tranfer failed'))
+        except FabricException as e:
+            print(red('file tranfer failed {}'.format(e)))
 
 
 def specify_db_tranfered():
@@ -276,6 +281,8 @@ def initial_setup():
     execute(create_db_or_dropN_create_db)
     execute(make_keys_dir)
     execute(mysql_tzinfo)
+    execute(fake_migrations)
+    execute(migrate)
     execute(collectstatic)
     execute(setup_nginx)
     execute(setup_gunicorn)
