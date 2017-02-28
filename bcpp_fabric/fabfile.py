@@ -20,7 +20,7 @@ clients = CLIENTS
 env.hosts = [host for host in hosts.keys()]
 env.clients = [clients for clients in clients.keys()]
 env.passwords = hosts
-env.database_file = 'edc_training_test_data_20170228280912.sql'
+env.database_file = 'edc_bhs_test_data_201702282809358.sql'
 env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
@@ -30,7 +30,7 @@ env.server_ssh_key_location = 'django@10.113.201.134:~/'
 a_dir = a_file = "{0}/{1}".format
 
 FAB_DIR = 'fabric'
-env.keys = 'crypto_fields.tar.gz'
+env.keys = 'crypto_fields'
 
 FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
 
@@ -143,9 +143,13 @@ def dump_backup():
 @task
 def restore_database():
     execute(create_db_or_dropN_create_db)
+    with cd(PROJECT_DIR): 
+        run('scp -r django@bcpp3:/home/django/training_keys/crypto_fields .')
     execute(transfer_db)
     with cd(PROJECT_DIR):
         execute_sql_file(env.database_file)
+    execute(start_webserver)
+    
 
 
 def execute_sql_file(sql_file):
@@ -209,17 +213,13 @@ def make_keys_dir():
 @task
 def compress_keys():
     with cd(PROJECT_DIR):
-        run('tar -czvf crypto_fields.tar.gz {}'.format(PROJECT_DIR))
+        local('tar -czvf crypto_fields.tar.gz {}'.format(os.path.join(BASE_DIR, env.keys)))
 
 
 @task
 def tranfer_compressed_keys():
     with cd(env.source_dir):
-        try:
-            run('scp {} {}:{}'.format(env.keys, env.clients[0], env.source_dir))
-            print(green('file sent.'))
-        except:
-            print(red('file transfer failed'))
+        put(os.path.join(GUNICORN_DIR, 'gunicorn.co), PROJECT_DIR, use_sudo=True)
 
 
 @task
