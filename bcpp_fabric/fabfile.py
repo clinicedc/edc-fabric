@@ -20,7 +20,7 @@ clients = CLIENTS
 env.hosts = [host for host in hosts.keys()]
 env.clients = [clients for clients in clients.keys()]
 env.passwords = hosts
-env.database_file = 'edc_to_transfer'
+env.database_file = 'edc_201702221326.sql'
 env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
@@ -142,6 +142,7 @@ def dump_backup():
 
 @task
 def restore_database():
+    execute(create_db_or_dropN_create_db)
     execute(transfer_db)
     with cd(PROJECT_DIR):
         execute_sql_file(env.database_file)
@@ -156,9 +157,11 @@ def execute_sql_file(sql_file):
 
 @task
 def transfer_db():
+    print(os.path.join(BASE_DIR, env.database_file))
     with cd(env.source_dir):
         try:
-            run('rsync -avz --progress {} {}:{}'.format(env.database_file, env.clients[0], PROJECT_DIR))
+            run('rsync -avz --progress {} {}:{}'.format(
+                os.path.join(BASE_DIR, env.database_file), env.clients[0], PROJECT_DIR))
             print(green('Database file sent.'))
         except FabricException as e:
             print(red('file tranfer failed {}'.format(e)))
