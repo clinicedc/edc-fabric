@@ -20,7 +20,7 @@ clients = CLIENTS
 env.hosts = [host for host in hosts.keys()]
 env.clients = [clients for clients in clients.keys()]
 env.passwords = hosts
-env.database_file = 'edc_test_data_201702282859.sql'
+env.database_file = 'edc_training_test_data_20170228280912.sql'
 env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
@@ -150,7 +150,7 @@ def restore_database():
 
 def execute_sql_file(sql_file):
     try:
-        sudo('mysql -uroot -p%s edc < %s' % (env.mysql_root_passwd, sql_file))
+        run('mysql -uroot -p%s edc < %s' % (env.mysql_root_passwd, sql_file))
     except FabricException as e:
         print(red('Failed to restore database {} Got {}'.format(sql_file, e)))
 
