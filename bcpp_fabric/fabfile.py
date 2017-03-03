@@ -20,10 +20,11 @@ clients = CLIENTS
 env.hosts = [host for host in hosts.keys()]
 env.clients = [clients for clients in clients.keys()]
 env.passwords = hosts
-env.database_file = 'edc_bhs_test_data_201702282809358.sql'
+env.database_file = 'edc_field_db_201703010831.sql'
 env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
+env.server = '10.113.200.169'
 
 env.server_ssh_key_location = 'django@10.113.201.134:~/'
 
@@ -143,13 +144,12 @@ def dump_backup():
 @task
 def restore_database():
     execute(create_db_or_dropN_create_db)
-    with cd(PROJECT_DIR): 
-        run('scp -r django@bcpp3:/home/django/training_keys/crypto_fields .')
     execute(transfer_db)
+#     with cd(PROJECT_DIR):
+#         run('scp -r django@10.113.200.135:/home/django/training_keys/crypto_fields .')
     with cd(PROJECT_DIR):
         execute_sql_file(env.database_file)
     execute(start_webserver)
-    
 
 
 def execute_sql_file(sql_file):
@@ -219,7 +219,7 @@ def compress_keys():
 @task
 def tranfer_compressed_keys():
     with cd(env.source_dir):
-        put(os.path.join(GUNICORN_DIR, 'gunicorn.co), PROJECT_DIR, use_sudo=True)
+        put(os.path.join(BASE_DIR, env.keys), os.path.join(PROJECT_DIR, env.keys), use_sudo=True)
 
 
 @task
@@ -427,6 +427,20 @@ def disable_apache_on_startup():
 def mysql_tzinfo():
     run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
 
+
+
+@task
+def setup_ssh_key_pair():
+    result = run('which ssh-copy-id')
+    if not result.failed:
+        run('ssh-keygen')
+        run('ssh-copy-id django@{}'.format(env.server))
+    else:
+        run('ssh-keygen')
+        run('brew install ssh-copy-id')
+        result = run('which ssh-copy-id')
+        if not result.failed:
+            run('ssh-copy-id django@{}'.format(env.server))
 
 @task
 def managepy(command=None):
