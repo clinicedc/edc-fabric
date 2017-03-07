@@ -10,21 +10,25 @@ from fabric.colors import green, blue, red
 from fabric.contrib.console import confirm
 
 from hosts import HOSTS, CLIENTS
+from databases import DATABASES, DATABASE_FILES
 
 BASE_DIR = Path(os.path.dirname(os.path.realpath(__file__)))
 NGINX_DIR = os.path.join(BASE_DIR.ancestor(1), 'nginx_deployment')
 GUNICORN_DIR = NGINX_DIR
 hosts = HOSTS
 clients = CLIENTS
+database_files = DATABASE_FILES
 
 env.hosts = [host for host in hosts.keys()]
 env.clients = [clients for clients in clients.keys()]
+env.database_files = [database_files for database_files in database_files.keys()]
 env.passwords = hosts
-env.database_file = 'edc_field_db_201703010831.sql'
+env.database_file = env.database_files[0]
 env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
-env.server = '10.113.200.169'
+env.server = '10.113.200.166'
+env.local_path = '/Users/gnmagodi/source/bcpp-fabric/bcpp_fabric/{}'.format(env.database_file)
 
 env.server_ssh_key_location = 'django@10.113.201.134:~/'
 
@@ -39,7 +43,7 @@ env.virtualenv_name = 'bcpp'
 env.source_dir = '/Users/django/source'
 PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
 
-env.update_repo = True
+env.update_repo = False
 
 if env.update_repo is None:
     raise ("env.update_repo cannot be None, Set env.update_repo = True for update. Set env.update_repo = False for initial deployment.")
@@ -48,6 +52,11 @@ env.create_db = False
 env.drop_and_create_db = True
 
 env.custom_config_is = False
+
+
+@task
+def print_test():
+    print(env.local_path)
 
 
 @task
@@ -85,8 +94,12 @@ def create_virtualenv():
         run('mkvirtualenv -p python3 {}'.format(env.virtualenv_name))
         print(green('{} virtualenv created.'.format(env.virtualenv_name)))
 
+        print(blue('Installing django....'))
+        sudo('pip install django')
+        print(green('Successfully installed django'))
+
     if env.custom_config_is:
-        if confirm('Do you want to create virtual environment {} y/n?'.format('bcpp'),
+        if confirm('Do you want to create virtual environment {} y/n?'.format(env.virtualenv_name),
                    default=True):
             _setup()
     else:
@@ -129,10 +142,10 @@ def create_db_or_dropN_create_db():
                    default=False):
             with settings(abort_exception=FabricException):
                 try:
-                    run("mysql -uroot -p -Bse 'drop database edc; create database edc character set utf8;'")
+                    run("mysql -uroot -p%s -Bse 'drop database edc; create database edc character set utf8;'" % (env.mysql_root_passwd))
                     print(green('edc database has been created.'))
                 except FabricException:
-                    run("mysql -uroot -p -Bse 'create database edc character set utf8;'")
+                    run("mysql -uroot -p%s -Bse 'create database edc character set utf8;'" % (env.mysql_root_passwd))
 
 
 @task
@@ -145,8 +158,8 @@ def dump_backup():
 def restore_database():
     execute(create_db_or_dropN_create_db)
     execute(transfer_db)
-#     with cd(PROJECT_DIR):
-#         run('scp -r django@10.113.200.135:/home/django/training_keys/crypto_fields .')
+    with cd(PROJECT_DIR):
+        run('scp -r django@bcpp3:/home/django/training_keys/crypto_fields .')
     with cd(PROJECT_DIR):
         execute_sql_file(env.database_file)
     execute(start_webserver)
@@ -162,15 +175,11 @@ def execute_sql_file(sql_file):
 @task
 def transfer_db():
     try:
-        local('rsync -avz --progress {} {}:{}'.format(
-            os.path.join(BASE_DIR, env.database_file), env.clients[0], PROJECT_DIR))
-        print(green('Database file sent.'))
+        with cd(PROJECT_DIR):
+            put(env.local_path, PROJECT_DIR)
+            print(green('Database file sent.'))
     except FabricException as e:
         print(red('file tranfer failed {}'.format(e)))
-
-
-def specify_db_tranfered():
-    print(env.clients[0])
 
 
 @task
@@ -281,15 +290,16 @@ def initial_setup():
     execute(install_requirements)
     execute(create_db_or_dropN_create_db)
     execute(make_keys_dir)
-    execute(mysql_tzinfo)
-    execute(fake_migrations)
+#     execute(mysql_tzinfo)
+    execute(restore_database)
+#     execute(fake_migrations)
     execute(migrate)
     execute(collectstatic)
     execute(setup_nginx)
     execute(setup_gunicorn)
     execute(load_fixtures)
     execute(staticjs_reverse)
-    execute(start_webserver)
+#     execute(start_webserver)
 
 
 @task
@@ -428,7 +438,6 @@ def mysql_tzinfo():
     run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
 
 
-
 @task
 def setup_ssh_key_pair():
     result = run('which ssh-copy-id')
@@ -441,6 +450,7 @@ def setup_ssh_key_pair():
         result = run('which ssh-copy-id')
         if not result.failed:
             run('ssh-copy-id django@{}'.format(env.server))
+
 
 @task
 def managepy(command=None):

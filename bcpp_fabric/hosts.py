@@ -1,9 +1,9 @@
 HOSTS = {
-    'django@10.113.200.251:22': 'xe5ooQuo',
-    'django@10.113.201.106:22': 'veoRa1ei',
-    'django@10.113.201.47:22': 'AiL4oe2t',
+#     'django@10.113.200.168:22': 'jaew9iYo',
+    'django@10.113.201.249:22': 'aich3Va9',
 }
 
 CLIENTS = {
-    'django@10.113.200.249': 'equ9aoVi',
-    }
+#     'django@10.113.200.168': 'jaew9iYo',
+    'django@10.113.201.249': 'aich3Va9',
+}
