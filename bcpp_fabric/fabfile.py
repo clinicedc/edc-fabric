@@ -42,8 +42,12 @@ FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
 env.virtualenv_name = 'bcpp'
 env.source_dir = '/Users/django/source'
 PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
-
+env.python_dir = '/Users/django/.virtualenvs/bcpp/bin'
 env.update_repo = False
+
+SETTINGS_DIR = a_dir(PROJECT_DIR, 'bcpp')
+CONFIG_DIR = a_dir(SETTINGS_DIR, 'config')
+SETTINGS_FILE = a_file(SETTINGS_DIR, 'settings.py')
 
 if env.update_repo is None:
     raise ("env.update_repo cannot be None, Set env.update_repo = True for update. Set env.update_repo = False for initial deployment.")
@@ -94,8 +98,8 @@ def create_virtualenv():
         run('mkvirtualenv -p python3 {}'.format(env.virtualenv_name))
         print(green('{} virtualenv created.'.format(env.virtualenv_name)))
 
-        print(blue('Installing django....'))
-        sudo('pip install django')
+        print(blue('Updating and Installing pip ipython django....'))
+        sudo('pip install -U pip ipython django')
         print(green('Successfully installed django'))
 
     if env.custom_config_is:
@@ -104,6 +108,15 @@ def create_virtualenv():
             _setup()
     else:
         _setup()
+
+
+@task
+def check_python_version():
+    result = run('which python')
+    if (result.failed or result == '{}/python'.format(env.python_dir)):
+        run('')
+    else:
+        execute(clone_bcpp)
 
 
 @task
@@ -159,7 +172,7 @@ def restore_database():
     execute(create_db_or_dropN_create_db)
     execute(transfer_db)
     with cd(PROJECT_DIR):
-        run('scp -r django@bcpp3:/home/django/training_keys/crypto_fields .')
+        run('pip install git+https://github.com/KeletsoBotsalano/django-crypto-fields.git .')
     with cd(PROJECT_DIR):
         execute_sql_file(env.database_file)
     execute(start_webserver)
@@ -258,8 +271,21 @@ def load_fixtures():
             run('python manage.py load_fixtures')
 
 
+#---still working on it
 @task
-def check_hostnames():
+def set_device_id():
+    device_id = get_device_id()
+    device_match_replace = "-i.bak s/DEVICE_ID\ =\ .*/DEVICE_ID\ =\ \'{dev_id}\'/g".format(dev_id=device_id)
+    dev_device = 'dev_device.py'
+    with cd(PROJECT_DIR):
+        sudo("sed \"%s\" /Users/django/source/bcpp/bcpp/settings.py >%s" % (device_match_replace, dev_device))
+        sudo("mv %s {}" % dev_device .format(SETTINGS_FILE))
+        chmod('755', SETTINGS_FILE)
+        chown(SETTINGS_FILE, dirr=False)
+
+
+@task
+def get_device_id():
     last_bit = ''
     for digit in hostname()[0]:
         if digit.isdigit():
@@ -282,7 +308,7 @@ def hostname():
 
 @task
 def initial_setup():
-    execute(check_hostnames)
+    execute(get_device_id)
     execute(disable_apache_on_startup)
     execute(remove_virtualenv)
     execute(create_virtualenv)
@@ -290,16 +316,16 @@ def initial_setup():
     execute(install_requirements)
     execute(create_db_or_dropN_create_db)
     execute(make_keys_dir)
-#     execute(mysql_tzinfo)
+    execute(mysql_tzinfo)
     execute(restore_database)
-#     execute(fake_migrations)
+    execute(fake_migrations)
     execute(migrate)
     execute(collectstatic)
     execute(setup_nginx)
     execute(setup_gunicorn)
     execute(load_fixtures)
     execute(staticjs_reverse)
-#     execute(start_webserver)
+    execute(start_webserver)
 
 
 @task
@@ -400,8 +426,8 @@ def deploy():
 def deployment_activity_log_files():
     for host in hostname():
         with cd(PROJECT_DIR):
-            file = run('touch {}.log'.format(host))
-            put(file, PROJECT_DIR)
+            startlog()
+            execute(checkdeployment)
 
 
 @task
@@ -416,10 +442,12 @@ def checkdeployment():
 
 
 def startlog():
-    file = run('touch {}.log'.format(host))
-    put(file, PROJECT_DIR)
-    logfile = open(file, "a+")
-    logfile.close()
+    with PROJECT_DIR:
+        run('touch {}.log'.format(env.hosts[0]))
+        file = ('{}.log'.format(env.hosts[0]))
+        logfile = open(file, "a+")
+        run(execute(clone_bcpp))
+        logfile.close()
 
 
 def log(msg):
@@ -450,6 +478,51 @@ def setup_ssh_key_pair():
         result = run('which ssh-copy-id')
         if not result.failed:
             run('ssh-copy-id django@{}'.format(env.server))
+
+
+@task
+def modify_settings(replacements):
+    "replacement should be a list of tuples"
+#     get(SETTINGS_FILE, 'settings.py')
+    with open(SETTINGS_FILE, 'rt') as old_settings:
+        content = old_settings.read()
+        for pair in replacements:
+            content = content.replace(pair[0], pair[1])
+        with open(SETTINGS_FILE, 'wt') as settings:
+            settings.write(content)
+#     put('settings.py', SETTINGS_FILE, use_sudo=False)
+#     os.remove('settings.py')
+    with cd(PROJECT_DIR):
+        chmod('755', 'settings.py')
+
+
+@task
+def set_debug_false():
+    with cd(PROJECT_DIR):
+        replace_debug = sudo("sed -i.bak s'/DEBUG = True/DEBUG = False/' {}" .format(SETTINGS_FILE))
+        if replace_debug.succeeded:
+            print('File ran in debug false mode >>>')
+        else:
+            pass
+
+
+@task
+def set_debug_true():
+    with cd(PROJECT_DIR):
+        replace_debug = sudo("sed -i.bak s'/DEBUG = False/DEBUG = True/' {}" .format(SETTINGS_FILE))
+        if replace_debug.succeeded:
+            print('File ran in debug True mode >>>')
+        else:
+            pass
+
+
+@task
+def get_debug_value():
+    result = run('grep -i "DEBUG = * " {}'.format(SETTINGS_FILE))
+    if result.succeeded:
+        print('Found >>>')
+    else:
+        print('not found <<<')
 
 
 @task
