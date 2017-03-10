@@ -18,6 +18,8 @@ GUNICORN_DIR = NGINX_DIR
 hosts = HOSTS
 clients = CLIENTS
 database_files = DATABASE_FILES
+env.old_code = 12
+env.new_code = 30
 
 env.hosts = [host for host in hosts.keys()]
 env.clients = [clients for clients in clients.keys()]
@@ -42,7 +44,7 @@ FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
 env.virtualenv_name = 'bcpp'
 env.source_dir = '/Users/django/source'
 PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
-env.python_dir = '/Users/django/.virtualenvs/bcpp/bin'
+env.python_dir = '/usr/bin'
 env.update_repo = False
 
 SETTINGS_DIR = a_dir(PROJECT_DIR, 'bcpp')
@@ -50,12 +52,16 @@ CONFIG_DIR = a_dir(SETTINGS_DIR, 'config')
 SETTINGS_FILE = a_file(SETTINGS_DIR, 'settings.py')
 
 if env.update_repo is None:
-    raise ("env.update_repo cannot be None, Set env.update_repo = True for update. Set env.update_repo = False for initial deployment.")
+    raise ("env.update_repo cannot be None, Set env.update_repo = True for update."
+           ("Set env.update_repo = False for initial deployment."))
 
 env.create_db = False
 env.drop_and_create_db = True
 
 env.custom_config_is = False
+
+env.new_community = 'test_community'
+env.old_community = 'digawana'
 
 
 @task
@@ -94,13 +100,9 @@ def remove_virtualenv():
 @task
 def create_virtualenv():
     def _setup():
-        print(blue('creating {} virtualenv .....'.format(env.virtualenv_name)))
-        run('mkvirtualenv -p python3 {}'.format(env.virtualenv_name))
+        print(blue('creating {} virtualenv > '.format(env.virtualenv_name)))
+        run('mkvirtualenv -p python3.5 {}'.format(env.virtualenv_name))
         print(green('{} virtualenv created.'.format(env.virtualenv_name)))
-
-        print(blue('Updating and Installing pip ipython django....'))
-        sudo('pip install -U pip ipython django')
-        print(green('Successfully installed django'))
 
     if env.custom_config_is:
         if confirm('Do you want to create virtual environment {} y/n?'.format(env.virtualenv_name),
@@ -108,15 +110,6 @@ def create_virtualenv():
             _setup()
     else:
         _setup()
-
-
-@task
-def check_python_version():
-    result = run('which python')
-    if (result.failed or result == '{}/python'.format(env.python_dir)):
-        run('')
-    else:
-        execute(clone_bcpp)
 
 
 @task
@@ -172,7 +165,7 @@ def restore_database():
     execute(create_db_or_dropN_create_db)
     execute(transfer_db)
     with cd(PROJECT_DIR):
-        run('pip install git+https://github.com/KeletsoBotsalano/django-crypto-fields.git .')
+        run('scp -r django@bcpp3:/home/django/training_keys/crypto_fields .')
     with cd(PROJECT_DIR):
         execute_sql_file(env.database_file)
     execute(start_webserver)
@@ -271,17 +264,9 @@ def load_fixtures():
             run('python manage.py load_fixtures')
 
 
-#---still working on it
-@task
-def set_device_id():
-    device_id = get_device_id()
-    device_match_replace = "-i.bak s/DEVICE_ID\ =\ .*/DEVICE_ID\ =\ \'{dev_id}\'/g".format(dev_id=device_id)
-    dev_device = 'dev_device.py'
-    with cd(PROJECT_DIR):
-        sudo("sed \"%s\" /Users/django/source/bcpp/bcpp/settings.py >%s" % (device_match_replace, dev_device))
-        sudo("mv %s {}" % dev_device .format(SETTINGS_FILE))
-        chmod('755', SETTINGS_FILE)
-        chown(SETTINGS_FILE, dirr=False)
+def hostname():
+    hostname = sudo('hostname')
+    return (hostname, env.host,)
 
 
 @task
@@ -290,30 +275,50 @@ def get_device_id():
     for digit in hostname()[0]:
         if digit.isdigit():
             last_bit += str(digit)
+
+    device_id = int(last_bit)
     try:
-        host_id = int(last_bit)
-        if host_id < 10:
-            host_id += 80
-            print(green("The device id: {}".format(host_id)))
-            return host_id
-        return host_id
+        if device_id < 10:
+            device_id += 80
+        return device_id
     except ValueError:
         raise ValueError('{0} is not an expected hostname'.format(hostname()[0]))
 
 
-def hostname():
-    hostname = sudo('hostname')
-    return (hostname, env.host,)
+@task
+def set_device_id():
+    with cd(PROJECT_DIR):
+        try:
+            device_id = get_device_id()
+            replace_device_id = sudo("sed -i.bak 's/DEVICE_ID = .*/DEVICE_ID = {}/g' {}" .format(device_id, SETTINGS_FILE))
+            if replace_device_id.succeeded:
+                print(blue('Replaced device id'))
+            chmod('755', SETTINGS_FILE)
+            chown(SETTINGS_FILE, dirr=False)
+
+        except:
+            pass
+
+
+@task
+def get_device_id_value():
+    result = run('grep -i "DEVICE_ID = * " {}'.format(SETTINGS_FILE))
+    if result.succeeded:
+        print('Found >>>')
+    else:
+        print('not found <<<')
 
 
 @task
 def initial_setup():
-    execute(get_device_id)
+    execute(set_device_id)
     execute(disable_apache_on_startup)
     execute(remove_virtualenv)
     execute(create_virtualenv)
     execute(clone_bcpp)
     execute(install_requirements)
+    execute(set_debug_false)
+#     execute(setup_ssh_key_pair)
     execute(create_db_or_dropN_create_db)
     execute(make_keys_dir)
     execute(mysql_tzinfo)
@@ -325,7 +330,7 @@ def initial_setup():
     execute(setup_gunicorn)
     execute(load_fixtures)
     execute(staticjs_reverse)
-    execute(start_webserver)
+#     execute(start_webserver)
 
 
 @task
@@ -399,7 +404,7 @@ def update_project():
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
                 run('git pull')
-                run('pip install -r requirements.txt -U')
+                run('pip install -U -r requirements.txt')
 
     if env.custom_config_is:
         if confirm('Do you want to stop and start nginx y/n?'.format('bcpp'),
@@ -523,6 +528,20 @@ def get_debug_value():
         print('Found >>>')
     else:
         print('not found <<<')
+
+
+@task
+def set_community(new_community=env.new_community):
+    with cd(PROJECT_DIR):
+        try:
+            change_community = sudo("""sed -i.bak "s/CURRENT_MAP_AREA = .*/CURRENT_MAP_AREA = '{}'/g" {}""" .format(str(new_community), SETTINGS_FILE))
+            if change_community.succeeded:
+                print(blue('Replaced community'))
+            chmod('755', SETTINGS_FILE)
+            chown(SETTINGS_FILE, dirr=False)
+
+        except:
+            pass
 
 
 @task
