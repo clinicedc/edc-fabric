@@ -309,7 +309,6 @@ def get_device_id_value():
     else:
         print('not found <<<')
 
-
 @task
 def initial_setup():
     execute(set_device_id)
@@ -323,14 +322,14 @@ def initial_setup():
     execute(create_db_or_dropN_create_db)
     execute(make_keys_dir)
     execute(mysql_tzinfo)
-    execute(restore_database)
-    execute(fake_migrations)
-    execute(migrate)
+#     execute(restore_database)
+#     execute(fake_migrations)
+#     execute(migrate)
     execute(collectstatic)
     execute(setup_nginx)
     execute(setup_gunicorn)
-    execute(load_fixtures)
-    execute(staticjs_reverse)
+#     execute(load_fixtures)
+#     execute(staticjs_reverse)
 #     execute(start_webserver)
 
 
