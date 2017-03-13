@@ -10,6 +10,7 @@ from fabric.colors import green, blue, red
 from fabric.contrib.console import confirm
 
 from hosts import HOSTS, CLIENTS
+from repo_list import REPOS
 from databases import DATABASES, DATABASE_FILES
 
 BASE_DIR = Path(os.path.dirname(os.path.realpath(__file__)))
@@ -20,7 +21,7 @@ clients = CLIENTS
 database_files = DATABASE_FILES
 env.old_code = 12
 env.new_code = 30
-
+env.repos = REPOS
 env.hosts = [host for host in hosts.keys()]
 env.clients = [clients for clients in clients.keys()]
 env.database_files = [database_files for database_files in database_files.keys()]
@@ -39,6 +40,9 @@ a_dir = a_file = "{0}/{1}".format
 FAB_DIR = 'fabric'
 env.keys = 'crypto_fields'
 
+env.repos = 'all_repos'
+env.repo_local_path = '/Users/gnmagodi/source/bcpp-fabric/bcpp_fabric/all_repos.tar.gz'
+env.repo_unpacked = '/Users/gnmagodi/source/bcpp-fabric/bcpp_fabric/'
 FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
 
 env.virtualenv_name = 'bcpp'
@@ -118,7 +122,7 @@ def clone_bcpp():
         run('rm -rf {}'.format(PROJECT_DIR))
         run('mkdir -p {}'.format(env.source_dir))
         with cd(env.source_dir):
-            run('git clone https://github.com/botswana-harvard/bcpp.git')
+            run('git clone -b master https://github.com/botswana-harvard/bcpp.git')
 
     if env.custom_config_is:
         if confirm('Do you want to clone {} y/n?'.format('bcpp'),
@@ -133,8 +137,8 @@ def install_requirements():
     def _setup():
         with cd(PROJECT_DIR):
             with prefix('workon bcpp'):
-                run('git checkout master')
-                run('pip install -r requirements_production.txt -U ')
+#                 run('git checkout master')
+                run('pip install -r requirements.txt -U ')
     if env.custom_config_is:
         if confirm('Do you want to install the {} requirements y/n?'.format('bcpp'),
                    default=True):
@@ -310,6 +314,7 @@ def get_device_id_value():
         print('Found >>>')
     else:
         print('not found <<<')
+
 
 @task
 def initial_setup():
@@ -544,6 +549,38 @@ def set_community(new_community=env.new_community):
 
         except:
             pass
+
+
+@task
+def clone_packages():
+    with cd('all_repos_unpacked'):
+        for repo in REPOS:
+            try:
+                local(
+                    'git clone -b master https://github.com/botswana-harvard/{}.git'.format(repo))
+            except:
+                pass  # TODO ask to Update or Not.
+
+
+@task
+def install_all_repos():
+    execute(clone_packages)
+    local('tar -czvf all_repos.tar.gz -C {} .'.format(os.path.join(BASE_DIR, env.repos)))
+    with cd(env.source_dir):
+        sudo('rm -rf all_repos_unpacked')
+        run('mkdir -p all_repos_unpacked')
+        put(env.repo_local_path, 'all_repos_unpacked')
+        with cd('all_repos_unpacked'):
+            run('tar -xvzf all_repos.tar.gz')
+            run('rm -rf all_repos.tar.gz')
+            execute(install_packages)
+
+
+@task
+def install_packages():
+    for repo in REPOS:
+        run('cd ../bcpp')
+        sudo('pip install -e ./{}/'.format(repo))
 
 
 @task
