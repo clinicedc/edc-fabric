@@ -115,6 +115,7 @@ def create_virtualenv():
 @task
 def clone_bcpp():
     def _setup():
+        run('rm -rf {}'.format(PROJECT_DIR))
         run('mkdir -p {}'.format(env.source_dir))
         with cd(env.source_dir):
             run('git clone https://github.com/botswana-harvard/bcpp.git')
@@ -150,6 +151,7 @@ def create_db_or_dropN_create_db():
             with settings(abort_exception=FabricException):
                 try:
                     run("mysql -uroot -p%s -Bse 'drop database edc; create database edc character set utf8;'" % (env.mysql_root_passwd))
+                    run("mysql -uroot -p%s -Bse 'alter table mysql.time_zone_transition_type modify Abbreviation CHAR(50);'" % (env.mysql_root_passwd))
                     print(green('edc database has been created.'))
                 except FabricException:
                     run("mysql -uroot -p%s -Bse 'create database edc character set utf8;'" % (env.mysql_root_passwd))
