@@ -564,6 +564,7 @@ def clone_packages():
 
 @task
 def install_all_repos():
+    execute(clone_packages)
     with cd(env.source_dir):
         sudo('rm -rf all_repos_unpacked')
         run('mkdir -p all_repos_unpacked')
