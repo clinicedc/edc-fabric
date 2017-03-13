@@ -41,8 +41,8 @@ FAB_DIR = 'fabric'
 env.keys = 'crypto_fields'
 
 env.repos = 'all_repos'
-env.repo_local_path = '/Users/gnmagodi/source/bcpp-fabric/bcpp_fabric/all_repos.tar.gz'
-env.repo_unpacked = '/Users/gnmagodi/source/bcpp-fabric/bcpp_fabric/'
+env.repo_local_path = os.path.join(BASE_DIR, 'all_repos.tar.gz')
+env.repo_unpacked = os.path.join(BASE_DIR)
 FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
 
 env.virtualenv_name = 'bcpp'
@@ -70,7 +70,8 @@ env.old_community = 'digawana'
 
 @task
 def print_test():
-    print(env.local_path)
+    print(env.repo_local_path)
+    print(env.repo_unpacked)
 
 
 @task
@@ -137,7 +138,6 @@ def install_requirements():
     def _setup():
         with cd(PROJECT_DIR):
             with prefix('workon bcpp'):
-#                 run('git checkout master')
                 run('pip install -r requirements.txt -U ')
     if env.custom_config_is:
         if confirm('Do you want to install the {} requirements y/n?'.format('bcpp'),
@@ -322,8 +322,9 @@ def initial_setup():
     execute(disable_apache_on_startup)
     execute(remove_virtualenv)
     execute(create_virtualenv)
-    execute(clone_bcpp)
-    execute(install_requirements)
+#     execute(clone_bcpp)
+#     execute(install_requirements)
+    execute(install_all_repos)
     execute(set_debug_false)
 #     execute(setup_ssh_key_pair)
     execute(create_db_or_dropN_create_db)
@@ -553,19 +554,18 @@ def set_community(new_community=env.new_community):
 
 @task
 def clone_packages():
-    with cd('all_repos_unpacked'):
+    with cd('all_repos'):
         for repo in REPOS:
             try:
                 local(
                     'git clone -b master https://github.com/botswana-harvard/{}.git'.format(repo))
             except:
-                pass  # TODO ask to Update or Not.
+                pass  # TODO ask to Update or Not
+        local('tar -czvf all_repos.tar.gz -C {} .'.format(os.path.join(BASE_DIR, env.repos)))
 
 
 @task
 def install_all_repos():
-    execute(clone_packages)
-    local('tar -czvf all_repos.tar.gz -C {} .'.format(os.path.join(BASE_DIR, env.repos)))
     with cd(env.source_dir):
         sudo('rm -rf all_repos_unpacked')
         run('mkdir -p all_repos_unpacked')
