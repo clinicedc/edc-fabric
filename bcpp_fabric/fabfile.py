@@ -73,7 +73,6 @@ def print_test():
     print(env.repo_local_path)
     print(env.repo_unpacked)
 
-
 @task
 def custom_config():
     if confirm('Do you want to customize deployment y/n'.format('bcpp'),
@@ -131,7 +130,6 @@ def clone_bcpp():
             _setup()
     else:
         _setup()
-
 
 @task
 def install_requirements():
@@ -554,15 +552,15 @@ def set_community(new_community=env.new_community):
 
 @task
 def clone_packages():
+    local('mkdir -p all_repos')
     with cd('all_repos'):
+        repo_dir = os.path.join(BASE_DIR, 'all_repos')
         for repo in REPOS:
             try:
-                local(
-                    'git clone -b master https://github.com/botswana-harvard/{}.git'.format(repo))
+                local('cd {}; git clone -b master https://github.com/botswana-harvard/{}.git'.format(repo_dir, repo))
             except:
                 pass  # TODO ask to Update or Not
-        local('tar -czvf all_repos.tar.gz -C {} .'.format(os.path.join(BASE_DIR, env.repos)))
-
+        local('tar -czvf all_repos.tar.gz -C {} .'.format(repo_dir))
 
 @task
 def install_all_repos():
