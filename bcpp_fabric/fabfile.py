@@ -321,8 +321,8 @@ def initial_setup():
     execute(remove_virtualenv)
     execute(create_virtualenv)
     execute(clone_bcpp)
-    execute(install_requirements)
-#     execute(install_all_repos)
+#     execute(install_requirements)
+    execute(install_all_repos)
     execute(set_debug_false)
 #     execute(setup_ssh_key_pair)
     execute(create_db_or_dropN_create_db)
@@ -577,9 +577,10 @@ def install_all_repos():
 
 @task
 def install_packages():
-    for repo in REPOS:
-        run('cd ../bcpp')
-        sudo('pip install -e ./{}/'.format(repo))
+    with prefix('workon bcpp'):
+        for repo in REPOS:
+            run('cd ../bcpp')
+            sudo('pip install -e ./{}/'.format(repo))
 
 
 @task
