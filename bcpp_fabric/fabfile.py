@@ -105,7 +105,7 @@ def remove_virtualenv():
 def create_virtualenv():
     def _setup():
         print(blue('creating {} virtualenv > '.format(env.virtualenv_name)))
-        run('mkvirtualenv -p python3.5 {}'.format(env.virtualenv_name))
+        run('mkvirtualenv -p python3 {}'.format(env.virtualenv_name))
         print(green('{} virtualenv created.'.format(env.virtualenv_name)))
 
     if env.custom_config_is:
