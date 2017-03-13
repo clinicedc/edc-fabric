@@ -134,7 +134,7 @@ def install_requirements():
         with cd(PROJECT_DIR):
             with prefix('workon bcpp'):
                 run('git checkout master')
-                run('pip install -r requirements.txt -U')
+                run('pip install -r requirements_production.txt -U ')
     if env.custom_config_is:
         if confirm('Do you want to install the {} requirements y/n?'.format('bcpp'),
                    default=True):
