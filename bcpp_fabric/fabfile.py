@@ -564,10 +564,7 @@ def clone_packages():
 
 @task
 def install_all_repos():
-    with prefix('workon bcpp'):
-        with cd(PROJECT_DIR):
-            run('git stash save')
-            run('git pull')
+    execute(clone_bcpp)
     with cd(env.source_dir):
         sudo('rm -rf all_repos_unpacked')
         run('mkdir -p all_repos_unpacked')
