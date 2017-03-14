@@ -111,7 +111,6 @@ def create_virtualenv():
         print(green('{} virtualenv created.'.format(env.virtualenv_name)))
 
         run('pip install -U ipython django pip Fabric3 Unipath')
-        run('pip install git+https://github.com/erikvw/django-crypto-fields.git')
 
     if env.custom_config_is:
         if confirm('Do you want to create virtual environment {} y/n?'.format(env.virtualenv_name),
@@ -154,14 +153,11 @@ def install_requirements():
 @task
 def create_db_or_dropN_create_db():
     if env.drop_and_create_db:
-        if confirm('Are you sure you want create a new {} database  y/n'.format('edc'),
-                   default=False):
-            with settings(abort_exception=FabricException):
-                try:
-                    run("mysql -uroot -p%s -Bse 'drop database edc; create database edc character set utf8;'" % (env.mysql_root_passwd))
-                    run("mysql -uroot -p%s -Bse 'alter table mysql.time_zone_transition_type modify Abbreviation CHAR(50);'" % (env.mysql_root_passwd))
-                    print(green('edc database has been created.'))
-                except FabricException:
+        try:
+            run("mysql -uroot -p%s -Bse 'drop database edc; create database edc character set utf8;'" % (env.mysql_root_passwd))
+            run("mysql -uroot -p%s -Bse 'alter table mysql.time_zone_transition_type modify Abbreviation CHAR(50);'" % (env.mysql_root_passwd))
+            print(green('edc database has been created.'))
+        except FabricException:
                     run("mysql -uroot -p%s -Bse 'create database edc character set utf8;'" % (env.mysql_root_passwd))
 
 
@@ -177,6 +173,7 @@ def restore_database():
     execute(transfer_db)
     with cd(PROJECT_DIR):
         run('scp -r django@bcpp3:~/edc_migrated/crypto_keys.dmg .')
+        run('hdiutil attach -stdinpass crypto_keys.dmg')
     with cd(PROJECT_DIR):
         execute_sql_file(env.database_file)
     execute(start_webserver)
@@ -312,6 +309,11 @@ def set_device_id():
 
 
 @task
+def load_crypto_fields():
+        run('pip install git+https://github.com/erikvw/django-crypto-fields.git')
+
+
+@task
 def get_device_id_value():
     result = run('grep -i "DEVICE_ID = * " {}'.format(SETTINGS_FILE))
     if result.succeeded:
@@ -391,6 +393,7 @@ def update_project():
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
                 run('git checkout master')
+                run('git pull')
                 run('pip install -U -r requirements.txt')
 
     if env.custom_config_is:
@@ -591,12 +594,13 @@ def initial_setup():
     execute(set_device_id)
     execute(disable_apache_on_startup)
     execute(remove_virtualenv)
+    execute(make_keys_dir)
     execute(create_virtualenv)
     execute(install_all_repos)
     execute(set_debug_false)
 #     execute(setup_ssh_key_pair)
     execute(create_db_or_dropN_create_db)
-    execute(make_keys_dir)
+    execute(load_crypto_fields)
     execute(mysql_tzinfo)
 #     execute(restore_database)
 #     execute(fake_migrations)
