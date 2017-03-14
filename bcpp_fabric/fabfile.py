@@ -31,7 +31,7 @@ env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
 env.server = '10.113.200.166'
-env.local_path = '/Users/gnmagodi/source/bcpp-fabric/bcpp_fabric/{}'.format(env.database_file)
+env.local_path = os.path.join(BASE_DIR, 'bcpp-fabric/bcpp_fabric/{}').format(env.database_file)
 
 env.server_ssh_key_location = 'django@10.113.201.134:~/'
 
@@ -72,6 +72,8 @@ env.old_community = 'digawana'
 def print_test():
     print(env.repo_local_path)
     print(env.repo_unpacked)
+    print(env.local_path)
+
 
 @task
 def custom_config():
@@ -119,7 +121,7 @@ def create_virtualenv():
 @task
 def clone_bcpp():
     def _setup():
-        run('rm -rf {}'.format(PROJECT_DIR))
+        sudo('rm -rf {}'.format(PROJECT_DIR))
         run('mkdir -p {}'.format(env.source_dir))
         with cd(env.source_dir):
             run('git clone -b master https://github.com/botswana-harvard/bcpp.git')
@@ -130,6 +132,7 @@ def clone_bcpp():
             _setup()
     else:
         _setup()
+
 
 @task
 def install_requirements():
@@ -561,6 +564,7 @@ def clone_packages():
             except:
                 pass  # TODO ask to Update or Not
         local('tar -czvf all_repos.tar.gz -C {} .'.format(repo_dir))
+
 
 @task
 def install_all_repos():
