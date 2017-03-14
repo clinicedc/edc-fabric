@@ -1,5 +1,4 @@
 REPOS = [
-    'bcpp-lab',
     'bcpp-subject',
     'edc-appointment',
     'edc-base',

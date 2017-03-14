@@ -9,21 +9,20 @@ from fabric.utils import error, warn
 from fabric.colors import green, blue, red
 from fabric.contrib.console import confirm
 
-from hosts import HOSTS, CLIENTS
+from hosts import HOSTS
 from repo_list import REPOS
 from databases import DATABASES, DATABASE_FILES
+from fabric.decorators import parallel
 
 BASE_DIR = Path(os.path.dirname(os.path.realpath(__file__)))
 NGINX_DIR = os.path.join(BASE_DIR.ancestor(1), 'nginx_deployment')
 GUNICORN_DIR = NGINX_DIR
 hosts = HOSTS
-clients = CLIENTS
 database_files = DATABASE_FILES
 env.old_code = 12
 env.new_code = 30
 env.repos = REPOS
 env.hosts = [host for host in hosts.keys()]
-env.clients = [clients for clients in clients.keys()]
 env.database_files = [database_files for database_files in database_files.keys()]
 env.passwords = hosts
 env.database_file = env.database_files[0]
@@ -73,6 +72,7 @@ def print_test():
     print(env.repo_local_path)
     print(env.repo_unpacked)
     print(env.local_path)
+    print(env.host)
 
 
 @task
@@ -89,7 +89,7 @@ class FabricException(Exception):
 @task
 def remove_virtualenv():
     def _setup():
-        result = run('rmvirtualenv {}'.format(env.virtualenv_name))
+        result = sudo('rmvirtualenv {}'.format(env.virtualenv_name))
         if result.succeeded:
             print(blue('removing {} virtualenv .....'.format(env.virtualenv_name)))
             print(green('{} virtualenv removed.'.format(env.virtualenv_name)))
@@ -109,6 +109,9 @@ def create_virtualenv():
         print(blue('creating {} virtualenv > '.format(env.virtualenv_name)))
         run('mkvirtualenv -p python3 {}'.format(env.virtualenv_name))
         print(green('{} virtualenv created.'.format(env.virtualenv_name)))
+
+        run('pip install -U ipython django pip Fabric3 Unipath')
+        run('pip install git+https://github.com/erikvw/django-crypto-fields.git')
 
     if env.custom_config_is:
         if confirm('Do you want to create virtual environment {} y/n?'.format(env.virtualenv_name),
@@ -173,7 +176,7 @@ def restore_database():
     execute(create_db_or_dropN_create_db)
     execute(transfer_db)
     with cd(PROJECT_DIR):
-        run('scp -r django@bcpp3:/home/django/training_keys/crypto_fields .')
+        run('scp -r django@bcpp3:~/edc_migrated/crypto_keys.dmg .')
     with cd(PROJECT_DIR):
         execute_sql_file(env.database_file)
     execute(start_webserver)
@@ -318,31 +321,6 @@ def get_device_id_value():
 
 
 @task
-def initial_setup():
-    execute(set_device_id)
-    execute(disable_apache_on_startup)
-    execute(remove_virtualenv)
-    execute(create_virtualenv)
-    execute(clone_bcpp)
-#     execute(install_requirements)
-    execute(install_all_repos)
-    execute(set_debug_false)
-#     execute(setup_ssh_key_pair)
-    execute(create_db_or_dropN_create_db)
-    execute(make_keys_dir)
-    execute(mysql_tzinfo)
-#     execute(restore_database)
-#     execute(fake_migrations)
-#     execute(migrate)
-    execute(collectstatic)
-    execute(setup_nginx)
-    execute(setup_gunicorn)
-#     execute(load_fixtures)
-#     execute(staticjs_reverse)
-#     execute(start_webserver)
-
-
-@task
 def setup_gunicorn():
     with prefix('workon bcpp'):
         run('pip install gunicorn')
@@ -412,7 +390,7 @@ def update_project():
     def _setup():
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
-                run('git pull')
+                run('git checkout master')
                 run('pip install -U -r requirements.txt')
 
     if env.custom_config_is:
@@ -584,7 +562,7 @@ def install_packages():
     with prefix('workon bcpp'):
         for repo in REPOS:
             run('cd ../bcpp')
-            sudo('pip install -e ./{}/'.format(repo))
+            run('pip install -e ./{}/'.format(repo))
 
 
 @task
@@ -606,3 +584,26 @@ def chown(name, dirr=True):
         sudo('chown -R {account}:staff {filename}'.format(account=env.account, filename=name))
     else:
         sudo('chown {account}:staff {filename}'.format(account=env.account, filename=name))
+
+
+@task
+def initial_setup():
+    execute(set_device_id)
+    execute(disable_apache_on_startup)
+    execute(remove_virtualenv)
+    execute(create_virtualenv)
+    execute(install_all_repos)
+    execute(set_debug_false)
+#     execute(setup_ssh_key_pair)
+    execute(create_db_or_dropN_create_db)
+    execute(make_keys_dir)
+    execute(mysql_tzinfo)
+#     execute(restore_database)
+#     execute(fake_migrations)
+#     execute(migrate)
+    execute(collectstatic)
+    execute(setup_nginx)
+    execute(setup_gunicorn)
+#     execute(load_fixtures)
+    execute(staticjs_reverse)
+    execute(start_webserver)

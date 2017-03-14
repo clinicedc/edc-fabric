@@ -67,3 +67,19 @@ Access the system
 ```
 Start server at http://127.0.0.1/
 ```
+
+```
+Installation of repos
+
+```
+The following tasks contribute:
+- fab -P deploy  - To make a first time deployment, run this command.
+- fab -P clone_packages - Run this task if the repos existing are outdated.
+- fab -P install_all_repos - If the local repos are up-to-date, run this task
+
+NB: fab -P <task> to run deployement in parallel, all machines at once.
+	fab -P -z <number_of_hosts> <task> to deploy certain number of machines
+
+
+
+
