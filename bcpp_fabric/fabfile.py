@@ -30,7 +30,7 @@ env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
 env.server = '10.113.200.166'
-env.local_path = os.path.join(BASE_DIR, 'bcpp-fabric/bcpp_fabric/{}').format(env.database_file)
+env.local_path = os.path.join(BASE_DIR, env.database_file)
 
 env.server_ssh_key_location = 'django@10.113.201.134:~/'
 
@@ -45,6 +45,7 @@ env.repo_unpacked = os.path.join(BASE_DIR)
 FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
 
 env.virtualenv_name = 'bcpp'
+env.database_folder = '/Users/django/databases/community'
 env.source_dir = '/Users/django/source'
 PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
 env.python_dir = '/usr/bin'
@@ -69,10 +70,10 @@ env.old_community = 'digawana'
 
 @task
 def print_test():
-    print(env.repo_local_path)
-    print(env.repo_unpacked)
-    print(env.local_path)
-    print(env.host)
+    run('mkdir -p {}'.format(env.database_folder))
+#     print(env.repo_unpacked)
+#     print(env.local_path)
+#     print(env.host)
 
 
 @task
@@ -109,8 +110,6 @@ def create_virtualenv():
         print(blue('creating {} virtualenv > '.format(env.virtualenv_name)))
         run('mkvirtualenv -p python3 {}'.format(env.virtualenv_name))
         print(green('{} virtualenv created.'.format(env.virtualenv_name)))
-
-        run('pip install -U ipython django pip Fabric3 Unipath')
 
     if env.custom_config_is:
         if confirm('Do you want to create virtual environment {} y/n?'.format(env.virtualenv_name),
@@ -171,12 +170,8 @@ def dump_backup():
 def restore_database():
     execute(create_db_or_dropN_create_db)
     execute(transfer_db)
-    with cd(PROJECT_DIR):
-        run('scp -r django@bcpp3:~/edc_migrated/crypto_keys.dmg .')
-        run('hdiutil attach -stdinpass crypto_keys.dmg')
-    with cd(PROJECT_DIR):
+    with cd(env.database_folder):
         execute_sql_file(env.database_file)
-    execute(start_webserver)
 
 
 def execute_sql_file(sql_file):
@@ -188,9 +183,10 @@ def execute_sql_file(sql_file):
 
 @task
 def transfer_db():
+    run('mkdir -p {}'.format(env.database_folder))
     try:
         with cd(PROJECT_DIR):
-            put(env.local_path, PROJECT_DIR)
+            put(env.local_path, '{}/{}'.format(env.database_folder, env.database_file))
             print(green('Database file sent.'))
     except FabricException as e:
         print(red('file tranfer failed {}'.format(e)))
@@ -229,8 +225,11 @@ def migrate():
 @task
 def make_keys_dir():
     with cd(PROJECT_DIR):
-        run('mkdir  -p crypto_fields')
+        run('mkdir -p crypto_fields')
         run('mkdir  -p media/edc_map')
+    with cd(PROJECT_DIR):
+        run('scp -r django@bcpp3:~/edc_migrated/crypto_keys.dmg .')
+        run('hdiutil attach -stdinpass crypto_keys.dmg')
 
 
 @task
@@ -309,8 +308,16 @@ def set_device_id():
 
 
 @task
-def load_crypto_fields():
-        run('pip install git+https://github.com/erikvw/django-crypto-fields.git')
+def install_dependencies():
+    with prefix('workon bcpp'):
+        run('pip install ipython')
+        run('pip install Fabric3')
+        run('pip install Unipath')
+        run('pip install Django')
+        run('pip install django-crispy-forms')
+        run('pip install django-tz-detect')
+        run('pip install -b master git+https://github.com/erikvw/django-crypto-fields.git')
+        run('pip install -b master git+https://github.com/erikvw/django-revision.git')
 
 
 @task
@@ -394,7 +401,12 @@ def update_project():
             with cd(PROJECT_DIR):
                 run('git checkout master')
                 run('git pull')
-                run('pip install -U -r requirements.txt')
+        with cd(env.source_dir):
+            for repo in REPOS:
+                with cd(repo):
+                    run('pwd')
+                    print('Updating {}'.format(repo))
+                    run('git pull')
 
     if env.custom_config_is:
         if confirm('Do you want to stop and start nginx y/n?'.format('bcpp'),
@@ -407,7 +419,7 @@ def update_project():
 @task
 def deploy():
     with settings(abort_exception=FabricException):
-#         execute(custom_config)
+        execute(custom_config)
         try:
             if not env.update_repo:
                 execute(initial_setup)
@@ -548,24 +560,26 @@ def clone_packages():
 
 
 @task
-def install_all_repos():
+def install_local_repos():
     execute(clone_bcpp)
     with cd(env.source_dir):
-        sudo('rm -rf all_repos_unpacked')
-        run('mkdir -p all_repos_unpacked')
-        put(env.repo_local_path, 'all_repos_unpacked')
-        with cd('all_repos_unpacked'):
+        sudo('rm -rf all_packages')
+        run('mkdir -p all_packages')
+        put(env.repo_local_path, 'all_packages')
+        with cd('all_packages'):
             run('tar -xvzf all_repos.tar.gz')
             run('rm -rf all_repos.tar.gz')
-            execute(install_packages)
+    run('rsync -vau --delete-after {} {}'.format('/Users/django/source/all_packages/*', env.source_dir + "/"))
+    run('rm -rf /Users/django/source/all_packages')
+    execute(install_packages)
 
 
 @task
 def install_packages():
     with prefix('workon bcpp'):
-        for repo in REPOS:
-            run('cd ../bcpp')
-            run('pip install -e ./{}/'.format(repo))
+        with cd(env.source_dir):
+            for repo in REPOS:
+                run('pip install -e ./{}/'.format(repo))
 
 
 @task
@@ -596,11 +610,11 @@ def initial_setup():
     execute(remove_virtualenv)
     execute(make_keys_dir)
     execute(create_virtualenv)
-    execute(install_all_repos)
+    execute(install_dependencies)
+    execute(install_local_repos)
     execute(set_debug_false)
 #     execute(setup_ssh_key_pair)
     execute(create_db_or_dropN_create_db)
-    execute(load_crypto_fields)
     execute(mysql_tzinfo)
 #     execute(restore_database)
 #     execute(fake_migrations)

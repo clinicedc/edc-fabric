@@ -10,6 +10,7 @@ REPOS = [
     'edc-lab',
     'edc-label',
     'edc-locator',
+    'edc-protocol',
     'edc-map',
     'edc-metadata',
     'edc-offstudy',
