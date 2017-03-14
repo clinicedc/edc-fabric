@@ -407,7 +407,7 @@ def update_project():
 @task
 def deploy():
     with settings(abort_exception=FabricException):
-        execute(custom_config)
+#         execute(custom_config)
         try:
             if not env.update_repo:
                 execute(initial_setup)
