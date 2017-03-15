@@ -500,7 +500,7 @@ def mysql_tzinfo():
 def setup_ssh_key_pair():
     result = run('which ssh-copy-id')
     if not result.failed:
-        run('ssh-keygen -t rsa -N "" -f id_rsa.pub')
+        run('ssh-keygen -t rsa -N ""')
         run('ssh-copy-id django@{}'.format(env.server))
     else:
         run('ssh-keygen -t rsa -N ""')
