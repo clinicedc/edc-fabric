@@ -350,6 +350,19 @@ def get_device_id_value():
     else:
         print('not found <<<')
 
+@task
+def setup_launch_webserver():
+    put(os.path.join(GUNICORN_DIR, 'nginx.plist'),
+        '/Library/LaunchDaemons/nginx.plist', use_sudo=True)
+    with cd(env.source_dir):
+        run('mkdir -p bash_scripts')
+    put(os.path.join(GUNICORN_DIR, 'gunicorn_startup.sh'),
+        os.path.join(env.source_dir, 'bash_scripts', 'gunicorn_startup.sh'),
+        use_sudo=True)
+
+    sudo('launchctl load -F /Library/LaunchDaemons/nginx.plist')
+    sudo('launchctl load -F /Library/LaunchDaemons/gunicorn.plist')
+
 
 @task
 def setup_gunicorn():
@@ -630,7 +643,6 @@ def initial_setup():
     execute(set_device_id)
     execute(disable_apache_on_startup)
     execute(remove_virtualenv)
-    execute(make_keys_dir)
     execute(create_virtualenv)
     execute(install_dependencies)
     execute(install_local_repos)
