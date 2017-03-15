@@ -29,7 +29,7 @@ env.database_file = env.database_files[0]
 env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
-env.server = '10.113.200.166'
+env.server = '10.113.200.222'
 env.local_path = os.path.join(BASE_DIR, env.database_file)
 
 env.server_ssh_key_location = 'django@10.113.201.134:~/'
@@ -163,7 +163,8 @@ def create_db_or_dropN_create_db():
 @task
 def dump_backup():
     with cd(env.source_dir):
-        sudo('mysqldump -uroot -p edc -r %s' % (env.dbname))
+        database_dump = sudo('mysqldump -uroot -p% edc -r %s' % (env.mysql_root_passwd, env.database_file))
+        put(database_dump, env.database_folder)
 
 
 @task
@@ -190,6 +191,28 @@ def transfer_db():
             print(green('Database file sent.'))
     except FabricException as e:
         print(red('file tranfer failed {}'.format(e)))
+
+
+@task
+def transfer_db_compressed():
+    run('mkdir -p {}'.format(env.database_folder))
+    try:
+        with cd(PROJECT_DIR):
+            execute(dump_backup)
+            run('tar -czvf database_dump.tar.gz -C {}'.format(env.database_folder))
+            put(env.local_path, '{}/{}'.format(env.database_folder, env.database_file))
+            print(green('Database file sent.'))
+    except FabricException as e:
+        print(red('file tranfer failed {}'.format(e)))
+
+
+@task
+def restore_database_compressed():
+    execute(create_db_or_dropN_create_db)
+    execute(transfer_db_compressed)
+    with cd(env.database_folder):
+        run('tar -xvzf database_dump.tar.gz')
+        execute_sql_file(env.database_file)
 
 
 @task
@@ -477,10 +500,10 @@ def mysql_tzinfo():
 def setup_ssh_key_pair():
     result = run('which ssh-copy-id')
     if not result.failed:
-        run('ssh-keygen')
+        run('ssh-keygen -t rsa -N "" -f id_rsa.pub')
         run('ssh-copy-id django@{}'.format(env.server))
     else:
-        run('ssh-keygen')
+        run('ssh-keygen -t rsa -N ""')
         run('brew install ssh-copy-id')
         result = run('which ssh-copy-id')
         if not result.failed:
