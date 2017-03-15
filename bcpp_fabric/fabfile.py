@@ -26,6 +26,7 @@ env.hosts = [host for host in hosts.keys()]
 env.database_files = [database_files for database_files in database_files.keys()]
 env.passwords = hosts
 env.database_file = env.database_files[0]
+env.compressed_db_name = '{}.tar.gz'.format(env.database_file)
 env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
@@ -161,10 +162,9 @@ def create_db_or_dropN_create_db():
 
 
 @task
-def dump_backup():
-    with cd(env.source_dir):
-        database_dump = sudo('mysqldump -uroot -p% edc -r %s' % (env.mysql_root_passwd, env.database_file))
-        put(database_dump, env.database_folder)
+def compress_db():
+    with cd(BASE_DIR):
+        local('tar -czvf {} {}'.format(env.compressed_db_name, env.database_file))
 
 
 @task
@@ -197,10 +197,9 @@ def transfer_db():
 def transfer_db_compressed():
     run('mkdir -p {}'.format(env.database_folder))
     try:
-        with cd(PROJECT_DIR):
-            execute(dump_backup)
-            run('tar -czvf database_dump.tar.gz -C {}'.format(env.database_folder))
-            put(env.local_path, '{}/{}'.format(env.database_folder, env.database_file))
+        with cd(env.source_dir):
+            #execute(compress_db)
+            put(os.path.join(BASE_DIR, env.compressed_db_name), '{}/{}'.format(env.database_folder, env.compressed_db_name))
             print(green('Database file sent.'))
     except FabricException as e:
         print(red('file tranfer failed {}'.format(e)))
@@ -211,7 +210,7 @@ def restore_database_compressed():
     execute(create_db_or_dropN_create_db)
     execute(transfer_db_compressed)
     with cd(env.database_folder):
-        run('tar -xvzf database_dump.tar.gz')
+        run('tar -xvzf {}'.format(env.compressed_db_name))
         execute_sql_file(env.database_file)
 
 
