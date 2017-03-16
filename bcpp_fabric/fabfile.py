@@ -491,6 +491,14 @@ def startlog():
         run(execute(clone_bcpp))
         logfile.close()
 
+@task
+def mkdir_transactions_folders():
+    with cd(self.source_dir):
+        run('mkdir -p bcpp/media/transactions/tmp')
+        run('mkdir -p bcpp/media/transactions/incoming')
+        run('mkdir -p bcpp/media/transactions/outgoing')
+        run('mkdir -p bcpp/media/transactions/archive')
+
 
 def log(msg):
     logfile = open(startlog.file, "a+")
@@ -647,6 +655,7 @@ def initial_setup():
     execute(install_dependencies)
     execute(install_local_repos)
     execute(make_keys_dir)
+    execute(mkdir_transactions_folders)
     execute(set_debug_false)
 #     execute(setup_ssh_key_pair)
     execute(create_db_or_dropN_create_db)
