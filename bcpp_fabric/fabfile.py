@@ -25,12 +25,13 @@ env.repos = REPOS
 env.hosts = [host for host in hosts.keys()]
 env.database_files = [database_files for database_files in database_files.keys()]
 env.passwords = hosts
+env.password = HOSTS.get(env.host_string)
 env.database_file = env.database_files[0]
 env.compressed_db_name = '{}.tar.gz'.format(env.database_file)
 env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
-env.server = '10.113.200.222'
+env.server = '10.113.200.135'
 env.local_path = os.path.join(BASE_DIR, env.database_file)
 
 env.server_ssh_key_location = 'django@10.113.201.134:~/'
@@ -71,10 +72,11 @@ env.old_community = 'digawana'
 
 @task
 def print_test():
-    run('mkdir -p {}'.format(env.database_folder))
+#     run('mkdir -p {}'.format(env.database_folder))
 #     print(env.repo_unpacked)
 #     print(env.local_path)
-#     print(env.host)
+    print(get_device_id())
+    print(env.password)
 
 
 @task
@@ -493,7 +495,7 @@ def startlog():
 
 @task
 def mkdir_transactions_folders():
-    with cd(self.source_dir):
+    with cd(env.source_dir):
         run('mkdir -p bcpp/media/transactions/tmp')
         run('mkdir -p bcpp/media/transactions/incoming')
         run('mkdir -p bcpp/media/transactions/outgoing')
@@ -515,19 +517,23 @@ def disable_apache_on_startup():
 def mysql_tzinfo():
     run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
 
-
 @task
 def setup_ssh_key_pair():
+    def server_to_client():
+        run('ssh-copy-id django@{}'.format(env.host))
+
     result = run('which ssh-copy-id')
     if not result.failed:
         run('ssh-keygen -t rsa -N ""')
         run('ssh-copy-id django@{}'.format(env.server))
+        server_to_client()
     else:
         run('ssh-keygen -t rsa -N ""')
         run('brew install ssh-copy-id')
         result = run('which ssh-copy-id')
         if not result.failed:
             run('ssh-copy-id django@{}'.format(env.server))
+            server_to_client()
 
 
 @task
@@ -544,8 +550,7 @@ def modify_settings(replacements):
 #     os.remove('settings.py')
     with cd(PROJECT_DIR):
         chmod('755', 'settings.py')
-
-
+        
 @task
 def set_debug_false():
     with cd(PROJECT_DIR):
