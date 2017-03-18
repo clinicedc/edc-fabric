@@ -89,6 +89,7 @@ def custom_config():
 class FabricException(Exception):
     pass
 
+env.abort_exception = FabricException
 
 @task
 def remove_virtualenv():
@@ -189,7 +190,8 @@ def transfer_db():
     run('mkdir -p {}'.format(env.database_folder))
     try:
         with cd(PROJECT_DIR):
-            put(env.local_path, '{}/{}'.format(env.database_folder, env.database_file))
+            put(env.local_path, '{}/{}'.format(
+                env.database_folder, env.database_file))
             print(green('Database file sent.'))
     except FabricException as e:
         print(red('file tranfer failed {}'.format(e)))
@@ -201,7 +203,8 @@ def transfer_db_compressed():
     try:
         with cd(env.source_dir):
             #execute(compress_db)
-            put(os.path.join(BASE_DIR, env.compressed_db_name), '{}/{}'.format(env.database_folder, env.compressed_db_name))
+            put(os.path.join(BASE_DIR, env.compressed_db_name),
+                '{}/{}'.format(env.database_folder, env.compressed_db_name))
             print(green('Database file sent.'))
     except FabricException as e:
         print(red('file tranfer failed {}'.format(e)))
@@ -327,7 +330,7 @@ def set_device_id():
             chmod('755', SETTINGS_FILE)
             chown(SETTINGS_FILE, dirr=False)
 
-        except:
+        except FabricException:
             pass
 
 
@@ -393,7 +396,7 @@ def setup_nginx():
         with cd('/usr/local/etc/nginx/sites-enabled'):
             try:
                 sudo('ln -s /usr/local/etc/nginx/sites-available/bcpp.conf bcpp.conf')
-            except:
+            except FabricException:
                 print(blue('nginx symbolic already created.'))
         print(green('nginx setup completed.'))
 
@@ -404,20 +407,17 @@ def setup_nginx():
     else:
         _setup()
 
-
+@task 
 def stop_webserver():
-    try:
+    with settings(warn_only=True):
         sudo('nginx -s stop')
-        sudo('pgrep gunicorn | xargs kill -9')
-    except:
-        pass
-
-
+        sudo("ps auxww | grep gunicorn | awk '{print $2}' | xargs kill -9")
+        
 @task
 def start_webserver():
     def _setup():
-        stop_webserver()
-        sudo('nginx')
+        with settings(warn_only=True):
+            sudo('nginx')
         with cd(PROJECT_DIR):
             with prefix('workon bcpp'):
                 run('gunicorn -c gunicorn.conf.py bcpp.wsgi --pid /Users/django/source/bcpp/logs/gunicorn.pid --daemon')
@@ -430,6 +430,11 @@ def start_webserver():
     else:
         _setup()
 
+@task
+def restart_webserver():
+    execute(stop_webserver)
+    execute(start_webserver)
+    
 
 @task
 def update_project():
@@ -437,13 +442,20 @@ def update_project():
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
                 run('git checkout master')
+                run('git stash save')
                 run('git pull')
+                with settings(warn_only=True):
+                    run('git stash pop')
         with cd(env.source_dir):
             for repo in REPOS:
                 with cd(repo):
                     run('pwd')
                     print('Updating {}'.format(repo))
+                    run('git stash save')
                     run('git pull')
+                    with settings(warn_only=True):
+                        run('git stash pop')
+        execute(restart_webserver)
 
     if env.custom_config_is:
         if confirm('Do you want to stop and start nginx y/n?'.format('bcpp'),
@@ -590,7 +602,7 @@ def set_community(new_community=env.new_community):
             chmod('755', SETTINGS_FILE)
             chown(SETTINGS_FILE, dirr=False)
 
-        except:
+        except FabricException:
             pass
 
 
@@ -601,10 +613,18 @@ def clone_packages():
         repo_dir = os.path.join(BASE_DIR, 'all_repos')
         for repo in REPOS:
             try:
+                print(blue('Cloning {}'.format(repo)))
                 local('cd {}; git clone -b master https://github.com/botswana-harvard/{}.git'.format(repo_dir, repo))
-            except:
-                pass  # TODO ask to Update or Not
-        local('tar -czvf all_repos.tar.gz -C {} .'.format(repo_dir))
+            except FabricException:
+                repo_path = os.path.join(repo_dir, repo)
+                print(blue('Updating existing {} repo'.format(repo)))
+                local('cd {}; pwd; git pull'.format(repo_path))
+                print(green('Done updating {} repo'.format(repo)))
+
+    if os.path.join(BASE_DIR, 'all_repos.tar.gz'):
+        with settings(warn_only=True): 
+            local('rm {}'.format(repo_dir+'.tar.gz'))
+    local('tar -czvf all_repos.tar.gz -C {} .'.format(repo_dir))
 
 
 @task
