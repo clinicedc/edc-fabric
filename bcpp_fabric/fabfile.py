@@ -159,11 +159,11 @@ def create_db_or_dropN_create_db():
     if env.drop_and_create_db:
         try:
             run("mysql -uroot -p%s -Bse 'drop database edc; create database edc character set utf8;'" % (env.mysql_root_passwd))
+        except FabricException:
+            run("mysql -uroot -p%s -Bse 'create database edc character set utf8;'" % (env.mysql_root_passwd))
+        else:
             run("mysql -uroot -p%s -Bse 'alter table mysql.time_zone_transition_type modify Abbreviation CHAR(50);'" % (env.mysql_root_passwd))
             print(green('edc database has been created.'))
-        except FabricException:
-                    run("mysql -uroot -p%s -Bse 'create database edc character set utf8;'" % (env.mysql_root_passwd))
-
 
 @task
 def compress_db():
@@ -252,10 +252,8 @@ def migrate():
 
 @task
 def make_keys_dir():
-    with cd(PROJECT_DIR):
-        run('mkdir -p crypto_fields')
-        run('mkdir  -p media/edc_map')
-    with cd(PROJECT_DIR):
+    run('mkdir -p /Users/django/prep_notebook')
+    with cd('/Users/django/prep_notebook'):
         run('scp -r django@bcpp3:~/edc_migrated/crypto_keys.dmg .')
         run('hdiutil attach -stdinpass crypto_keys.dmg')
 
@@ -533,6 +531,7 @@ def mkdir_transactions_folders():
         run('mkdir -p bcpp/media/transactions/incoming')
         run('mkdir -p bcpp/media/transactions/outgoing')
         run('mkdir -p bcpp/media/transactions/archive')
+        run('mkdir -p bcpp/media/transactions/usb')
 
 
 def log(msg):
@@ -549,6 +548,11 @@ def disable_apache_on_startup():
 @task
 def mysql_tzinfo():
     run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
+
+@task 
+def setup_bcpp_config():
+        put(os.path.join(BASE_DIR, 'etc', 'bcpp.conf'),
+        '/etc/bcpp.conf', sudo=True)
 
 @task
 def setup_ssh_key_pair():
@@ -611,21 +615,6 @@ def get_debug_value():
         print('Found >>>')
     else:
         print('not found <<<')
-
-
-@task
-def set_community(new_community=env.new_community):
-    with cd(PROJECT_DIR):
-        try:
-            change_community = sudo("""sed -i.bak "s/CURRENT_MAP_AREA = .*/CURRENT_MAP_AREA = '{}'/g" {}""" .format(str(new_community), SETTINGS_FILE))
-            if change_community.succeeded:
-                print(blue('Replaced community'))
-            chmod('755', SETTINGS_FILE)
-            chown(SETTINGS_FILE, dirr=False)
-
-        except FabricException:
-            pass
-
 
 @task
 def clone_packages():
