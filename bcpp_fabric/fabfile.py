@@ -4,6 +4,7 @@ from unipath import Path
 import os
 
 from fabric.api import *
+from fabric.contrib.files import exists
 from fabric.utils import error, warn
 # from fabric.contrib.files import exists
 from fabric.colors import green, blue, red
@@ -258,6 +259,25 @@ def make_keys_dir():
         run('scp -r django@bcpp3:~/edc_migrated/crypto_keys.dmg .')
         run('hdiutil attach -stdinpass crypto_keys.dmg')
 
+@task 
+def setup_crypto_scritps():
+    execute(move_keys_to_prep_notebook)
+    run('mkdir -p /Users/django/prep_notebook')
+    put(os.path.join(NGINX_DIR, 'mount_keys.sh'),
+        '/Users/django/prep_notebook/mount_keys.sh')
+    put(os.path.join(NGINX_DIR, 'dismount_keys.sh'),
+        '/Users/django/prep_notebook/dismount_keys.sh')
+    print(green('crypto keys setup successfully.'))
+        
+@task 
+def move_keys_to_prep_notebook():
+    run('mkdir -p /Users/django/prep_notebook')
+    with cd(PROJECT_DIR):
+        if exists('crypto_keys.dmg'):
+            run('mv crypto_keys.dmg /Users/django/prep_notebook/')
+            print(blue('move crypto_keys.dmg to /Users/django/prep_notebook/'))
+            sudo('chmod +x /Users/django/prep_notebook/*')
+
 
 @task
 def compress_keys():
@@ -439,6 +459,7 @@ def restart_webserver():
 @task
 def update_project():
     def _setup():
+        execute(setup_crypto_scritps)
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
                 run('git checkout master')
@@ -450,7 +471,7 @@ def update_project():
             for repo in REPOS:
                 with cd(repo):
                     run('pwd')
-                    print('Updating {}'.format(repo))
+                    print(blue('Updating {}'.format(repo)))
                     run('git stash save')
                     run('git pull')
                     with settings(warn_only=True):
