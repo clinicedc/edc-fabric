@@ -457,6 +457,7 @@ def restart_webserver():
 @task
 def update_project():
     def _setup():
+        execute(setup_bcpp_config)
         execute(move_keys_to_prep_notebook)
         execute(setup_crypto_scritps)
         with prefix('workon bcpp'):
