@@ -266,7 +266,7 @@ def setup_crypto_scritps():
     put(os.path.join(NGINX_DIR, 'mount_keys.sh'),
         '/Users/django/prep_notebook/dismount_keys.sh')
     print(green('crypto keys setup successfully.'))
-    with cd('/Users/django/source/bash_scripts'):
+    with cd('/Users/django/prep_notebook'):
         chmod('755', 'mount_keys.sh')
         chmod('755', 'dismount_keys.sh')
         
