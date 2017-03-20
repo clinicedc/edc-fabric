@@ -263,9 +263,12 @@ def setup_crypto_scritps():
     run('mkdir -p /Users/django/prep_notebook')
     put(os.path.join(NGINX_DIR, 'mount_keys.sh'),
         '/Users/django/prep_notebook/mount_keys.sh')
-    put(os.path.join(NGINX_DIR, 'dismount_keys.sh'),
+    put(os.path.join(NGINX_DIR, 'mount_keys.sh'),
         '/Users/django/prep_notebook/dismount_keys.sh')
     print(green('crypto keys setup successfully.'))
+    with cd('/Users/django/source/bash_scripts'):
+        chmod('755', 'mount_keys.sh')
+        chmod('755', 'dismount_keys.sh')
         
 @task 
 def move_keys_to_prep_notebook():
@@ -382,9 +385,10 @@ def setup_launch_webserver():
     put(os.path.join(GUNICORN_DIR, 'gunicorn_startup.sh'),
         os.path.join(env.source_dir, 'bash_scripts', 'gunicorn_startup.sh'),
         use_sudo=True)
-
     sudo('launchctl load -F /Library/LaunchDaemons/nginx.plist')
-    sudo('launchctl load -F /Library/LaunchDaemons/gunicorn.plist')
+    with cd('/Users/django/source/bash_scripts'):
+        chmod('755', 'gunicorn_startup.sh')
+
 
 
 @task
@@ -458,7 +462,6 @@ def restart_webserver():
 def update_project():
     def _setup():
         execute(setup_bcpp_config)
-        execute(move_keys_to_prep_notebook)
         execute(setup_crypto_scritps)
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
