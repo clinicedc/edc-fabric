@@ -475,10 +475,7 @@ def update_project():
                 with cd(repo):
                     run('pwd')
                     print(blue('Updating {}'.format(repo)))
-                    run('git stash save')
                     run('git pull')
-                    with settings(warn_only=True):
-                        run('git stash pop')
         execute(restart_webserver)
 
     if env.custom_config_is:
