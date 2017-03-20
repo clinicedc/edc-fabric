@@ -253,9 +253,12 @@ def migrate():
 @task
 def make_keys_dir():
     run('mkdir -p /Users/django/prep_notebook')
+    with cd(PROJECT_DIR):
+        run('mkdir media/edc_map')
     with cd('/Users/django/prep_notebook'):
         run('scp -r django@bcpp3:~/edc_migrated/crypto_keys.dmg .')
         run('hdiutil attach -stdinpass crypto_keys.dmg')
+    
 
 @task 
 def setup_crypto_scritps():
