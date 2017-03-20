@@ -457,6 +457,7 @@ def restart_webserver():
 @task
 def update_project():
     def _setup():
+        execute(move_keys_to_prep_notebook)
         execute(setup_crypto_scritps)
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
@@ -698,6 +699,8 @@ def initial_setup():
 #     execute(restore_database)
 #     execute(fake_migrations)
 #     execute(migrate)
+#     execute(move_keys_to_prep_notebook)
+#     execute(setup_crypto_scritps)
     execute(setup_nginx)
     execute(setup_gunicorn)
 #     execute(load_fixtures)
