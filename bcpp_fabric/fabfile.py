@@ -557,7 +557,7 @@ def mysql_tzinfo():
 @task 
 def setup_bcpp_config():
         put(os.path.join(BASE_DIR, 'etc', 'bcpp.conf'),
-        '/etc/bcpp.conf', sudo=True)
+        '/etc/bcpp.conf', use_sudo=True)
 
 @task
 def setup_ssh_key_pair():
