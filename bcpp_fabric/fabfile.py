@@ -348,7 +348,9 @@ def set_device_id():
     with cd(PROJECT_DIR):
         try:
             device_id = get_device_id()
-            replace_device_id = sudo("sed -i.bak 's/DEVICE_ID = .*/DEVICE_ID = {}/g' {}" .format(device_id, SETTINGS_FILE))
+            replace_device_id = sudo(
+                "sed -i.bak 's/DEVICE_ID = .*/DEVICE_ID = {}/g' {}" .format(
+                    device_id, SETTINGS_FILE))
             if replace_device_id.succeeded:
                 print(blue('Replaced device id'))
             chmod('755', SETTINGS_FILE)
@@ -432,12 +434,12 @@ def setup_nginx():
     else:
         _setup()
 
-@task 
+@task
 def stop_webserver():
     with settings(warn_only=True):
         sudo('nginx -s stop')
         sudo("ps auxww | grep gunicorn | awk '{print $2}' | xargs kill -9")
-        
+
 @task
 def start_webserver():
     def _setup():
@@ -459,7 +461,6 @@ def start_webserver():
 def restart_webserver():
     execute(stop_webserver)
     execute(start_webserver)
-    
 
 @task
 def update_project():
@@ -468,17 +469,21 @@ def update_project():
         execute(setup_crypto_scritps)
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
+                run('git reset HEAD *')
+                run('git checkout -- .')
                 run('git checkout master')
-                run('git stash save')
                 run('git pull')
-                with settings(warn_only=True):
-                    run('git stash pop')
+                execute(set_device_id)
         with cd(env.source_dir):
             for repo in REPOS:
                 with cd(repo):
                     run('pwd')
                     print(blue('Updating {}'.format(repo)))
+                    run('git reset HEAD *')
+                    run('git checkout -- .')
                     run('git pull')
+                    print(blue('Done.\n'))
+        execute(set_debug_false)
         execute(restart_webserver)
 
     if env.custom_config_is:
@@ -592,7 +597,7 @@ def modify_settings(replacements):
 #     os.remove('settings.py')
     with cd(PROJECT_DIR):
         chmod('755', 'settings.py')
-        
+
 @task
 def set_debug_false():
     with cd(PROJECT_DIR):
@@ -637,7 +642,7 @@ def clone_packages():
                 print(green('Done updating {} repo'.format(repo)))
 
     if os.path.join(BASE_DIR, 'all_repos.tar.gz'):
-        with settings(warn_only=True): 
+        with settings(warn_only=True):
             local('rm {}'.format(repo_dir+'.tar.gz'))
     local('tar -czvf all_repos.tar.gz -C {} .'.format(repo_dir))
 
@@ -652,7 +657,8 @@ def install_local_repos():
         with cd('all_packages'):
             run('tar -xvzf all_repos.tar.gz')
             run('rm -rf all_repos.tar.gz')
-    run('rsync -vau --delete-after {} {}'.format('/Users/django/source/all_packages/*', env.source_dir + "/"))
+    run('rsync -vau --delete-after {} {}'.format(
+        '/Users/django/source/all_packages/*', env.source_dir + "/"))
     run('rm -rf /Users/django/source/all_packages')
     execute(install_packages)
 
