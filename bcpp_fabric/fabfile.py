@@ -49,7 +49,7 @@ FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
 
 env.virtualenv_name = 'bcpp'
 env.database_folder = '/Users/django/databases/community'
-env.source_dir = '/Users/django/source'
+env.source_dir = '/Users/tsetsiba/source'
 PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
 env.python_dir = '/usr/bin'
 env.update_repo = False
@@ -203,7 +203,6 @@ def transfer_db_compressed():
     run('mkdir -p {}'.format(env.database_folder))
     try:
         with cd(env.source_dir):
-            #execute(compress_db)
             put(os.path.join(BASE_DIR, env.compressed_db_name),
                 '{}/{}'.format(env.database_folder, env.compressed_db_name))
             print(green('Database file sent.'))
@@ -380,6 +379,7 @@ def get_device_id_value():
     else:
         print('not found <<<')
 
+
 @task
 def setup_launch_webserver():
     put(os.path.join(GUNICORN_DIR, 'nginx.plist'),
@@ -392,7 +392,6 @@ def setup_launch_webserver():
     sudo('launchctl load -F /Library/LaunchDaemons/nginx.plist')
     with cd('/Users/django/source/bash_scripts'):
         chmod('755', 'gunicorn_startup.sh')
-
 
 
 @task
@@ -433,11 +432,13 @@ def setup_nginx():
     else:
         _setup()
 
+
 @task
 def stop_webserver():
     with settings(warn_only=True):
         sudo('nginx -s stop')
         sudo("ps auxww | grep gunicorn | awk '{print $2}' | xargs kill -9")
+
 
 @task
 def start_webserver():
@@ -456,10 +457,12 @@ def start_webserver():
     else:
         _setup()
 
+
 @task
 def restart_webserver():
     execute(stop_webserver)
     execute(start_webserver)
+
 
 @task
 def update_project():
@@ -481,6 +484,7 @@ def update_project():
                     print(blue('Updating {}'.format(repo)))
                     run('git reset HEAD *')
                     run('git checkout -- .')
+                    run('git checkout master')
                     run('git pull')
                     print(blue('Done.\n'))
         execute(set_debug_false)
@@ -560,7 +564,7 @@ def disable_apache_on_startup():
 def mysql_tzinfo():
     run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
 
-@task 
+@task
 def setup_bcpp_config():
         put(os.path.join(BASE_DIR, 'etc', 'bcpp.conf'),
         '/etc/bcpp.conf', use_sudo=True)
@@ -599,6 +603,7 @@ def modify_settings(replacements):
     with cd(PROJECT_DIR):
         chmod('755', 'settings.py')
 
+
 @task
 def set_debug_false():
     with cd(PROJECT_DIR):
@@ -627,6 +632,7 @@ def get_debug_value():
     else:
         print('not found <<<')
 
+
 @task
 def clone_packages():
     local('mkdir -p all_repos')
@@ -635,7 +641,7 @@ def clone_packages():
         for repo in REPOS:
             try:
                 print(blue('Cloning {}'.format(repo)))
-                local('cd {}; git clone -b master https://github.com/botswana-harvard/{}.git'.format(repo_dir, repo))
+                local('cd {}; git clone https://github.com/botswana-harvard/{}.git'.format(repo_dir, repo))
             except FabricException:
                 repo_path = os.path.join(repo_dir, repo)
                 print(blue('Updating existing {} repo'.format(repo)))
@@ -646,6 +652,14 @@ def clone_packages():
         with settings(warn_only=True):
             local('rm {}'.format(repo_dir+'.tar.gz'))
     local('tar -czvf all_repos.tar.gz -C {} .'.format(repo_dir))
+
+
+@task
+def checkout_branch(self, branch_type):
+    run('pwd')
+    run('git checkout {}'.format(branch_type))
+    run('git branch')
+    print(blue('Switched to branch {}'.format(branch_type)))
 
 
 @task
@@ -688,9 +702,11 @@ def chmod(permission, file, dirr=False):
 
 def chown(name, dirr=True):
     if dirr:
-        sudo('chown -R {account}:staff {filename}'.format(account=env.account, filename=name))
+        sudo('chown -R {account}:staff {filename}'.format(
+            account=env.account, filename=name))
     else:
-        sudo('chown {account}:staff {filename}'.format(account=env.account, filename=name))
+        sudo('chown {account}:staff {filename}'.format(
+            account=env.account, filename=name))
 
 
 @task
