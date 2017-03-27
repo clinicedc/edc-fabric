@@ -32,7 +32,7 @@ env.compressed_db_name = '{}.tar.gz'.format(env.database_file)
 env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
-env.server = '10.113.200.135'
+env.server = '10.113.201.142'
 env.local_path = os.path.join(BASE_DIR, env.database_file)
 
 env.server_ssh_key_location = 'django@10.113.201.134:~/'
@@ -487,6 +487,7 @@ def update_project():
                     run('git checkout master')
                     run('git pull')
                     print(blue('Done.\n'))
+        execute(mkdir_transactions_folders)
         execute(set_debug_false)
         execute(collectstatic)
         execute(restart_webserver)
@@ -538,6 +539,7 @@ def startlog():
         logfile = open(file, "a+")
         run(execute(clone_bcpp))
         logfile.close()
+
 
 @task
 def mkdir_transactions_folders():
@@ -683,7 +685,7 @@ def install_packages():
     with prefix('workon bcpp'):
         with cd(env.source_dir):
             for repo in REPOS:
-                run('pip install -e ./{}/'.format(repo))
+                local('pip install -e ./{}/'.format(repo))
 
 
 @task
