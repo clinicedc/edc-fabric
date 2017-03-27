@@ -466,8 +466,8 @@ def restart_webserver():
 
 @task
 def setup_hosts():
-    put(os.path.join(NGINX_DIR, 'hosts.conf'),
-        '/etc/hosts.conf', use_sudo=True)
+    put(os.path.join(NGINX_DIR, 'hosts'),
+        '/etc/hosts', use_sudo=True)
 
 
 @task
