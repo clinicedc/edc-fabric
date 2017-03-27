@@ -92,6 +92,7 @@ class FabricException(Exception):
 
 env.abort_exception = FabricException
 
+
 @task
 def remove_virtualenv():
     def _setup():
@@ -258,20 +259,22 @@ def make_keys_dir():
         run('scp -r django@bcpp3:~/edc_migrated/crypto_keys.dmg .')
         run('hdiutil attach -stdinpass crypto_keys.dmg')
 
-@task 
+
+@task
 def setup_crypto_scritps():
     execute(move_keys_to_prep_notebook)
     run('mkdir -p /Users/django/prep_notebook')
     put(os.path.join(NGINX_DIR, 'mount_keys.sh'),
         '/Users/django/prep_notebook/mount_keys.sh')
-    put(os.path.join(NGINX_DIR, 'mount_keys.sh'),
+    put(os.path.join(NGINX_DIR, 'dismount_keys.sh'),
         '/Users/django/prep_notebook/dismount_keys.sh')
     print(green('crypto keys setup successfully.'))
     with cd('/Users/django/prep_notebook'):
         chmod('755', 'mount_keys.sh')
         chmod('755', 'dismount_keys.sh')
 
-@task 
+
+@task
 def move_keys_to_prep_notebook():
     run('mkdir -p /Users/django/prep_notebook')
     with cd(PROJECT_DIR):
@@ -389,7 +392,7 @@ def setup_launch_webserver():
     put(os.path.join(GUNICORN_DIR, 'gunicorn_startup.sh'),
         os.path.join(env.source_dir, 'bash_scripts', 'gunicorn_startup.sh'),
         use_sudo=True)
-    sudo('launchctl load -F /Library/LaunchDaemons/nginx.plist')
+    # sudo('launchctl load -F /Library/LaunchDaemons/nginx.plist')
     with cd('/Users/django/source/bash_scripts'):
         chmod('755', 'gunicorn_startup.sh')
 
@@ -477,6 +480,7 @@ def update_project():
         execute(setup_crypto_scritps)
         execute(make_keys_dir)
         execute(setup_hosts)
+        execute(setup_launch_webserver)
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
                 run('git reset HEAD *')
@@ -575,10 +579,12 @@ def disable_apache_on_startup():
 def mysql_tzinfo():
     run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
 
+
 @task
 def setup_bcpp_config():
         put(os.path.join(BASE_DIR, 'etc', 'bcpp.conf'),
         '/etc/bcpp.conf', use_sudo=True)
+
 
 @task
 def setup_ssh_key_pair():
