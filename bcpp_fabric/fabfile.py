@@ -465,17 +465,24 @@ def restart_webserver():
 
 
 @task
+def setup_hosts():
+    put(os.path.join(NGINX_DIR, 'hosts.conf'),
+        '/etc/hosts.conf', use_sudo=True)
+
+
+@task
 def update_project():
     def _setup():
         execute(setup_bcpp_config)
         execute(setup_crypto_scritps)
         execute(make_keys_dir)
+        execute(setup_hosts)
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
                 run('git reset HEAD *')
                 run('git checkout -- .')
-                run('git checkout master')
                 run('git pull')
+                run('git checkout master')
                 execute(set_device_id)
         with cd(env.source_dir):
             for repo in REPOS:
@@ -484,8 +491,10 @@ def update_project():
                     print(blue('Updating {}'.format(repo)))
                     run('git reset HEAD *')
                     run('git checkout -- .')
-                    run('git checkout master')
                     run('git pull')
+                    with prefix('workon bcpp'):
+                        run('pip install -e ../{}/'.format(repo))
+                    run('git checkout master')
                     print(blue('Done.\n'))
         execute(mkdir_transactions_folders)
         execute(set_debug_false)
