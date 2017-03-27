@@ -39,6 +39,14 @@ HOSTS = {
 }
 
 ```
+```
+create and or edit bcpp.conf file
+
+```
+nano /etc/bcpp.conf
+
+```
+
 Start Deployment
 
 ```
