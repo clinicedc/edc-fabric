@@ -33,6 +33,7 @@ env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
 env.server = '10.113.201.142'
+env.server_name = 'mmankgodi'
 env.local_path = os.path.join(BASE_DIR, env.database_file)
 
 env.server_ssh_key_location = 'django@10.113.201.134:~/'
@@ -73,9 +74,9 @@ env.old_community = 'digawana'
 
 @task
 def print_test():
-#     run('mkdir -p {}'.format(env.database_folder))
-#     print(env.repo_unpacked)
-#     print(env.local_path)
+# #     run('mkdir -p {}'.format(env.database_folder))
+# #     print(env.repo_unpacked)
+    print(env.local_path)
     print(get_device_id())
     print(env.password)
 
@@ -200,6 +201,7 @@ def transfer_db():
 
 @task
 def transfer_db_compressed():
+    execute(compress_db)
     run('mkdir -p {}'.format(env.database_folder))
     try:
         with cd(env.source_dir):
@@ -465,6 +467,47 @@ def restart_webserver():
 
 
 @task
+def update_server():
+    def _setup():
+        execute(setup_bcpp_config)
+        execute(setup_crypto_scritps)
+        execute(make_keys_dir)
+        execute(change_hostname)
+        with prefix('workon bcpp'):
+            with cd(PROJECT_DIR):
+                run('git reset HEAD *')
+                run('git checkout -- .')
+                run('git checkout master')
+                run('git pull')
+        with cd(env.source_dir):
+            for repo in REPOS:
+                with cd(repo):
+                    run('pwd')
+                    print(blue('Updating {}'.format(repo)))
+                    run('git reset HEAD *')
+                    run('git checkout -- .')
+                    run('git checkout master')
+                    run('git pull')
+                    print(blue('Done.\n'))
+        execute(mkdir_transactions_folders)
+        execute(set_debug_false)
+        execute(collectstatic)
+        execute(restart_webserver)
+
+    if env.custom_config_is:
+        if confirm('Do you want to stop and start nginx y/n?'.format('bcpp'),
+                   default=True):
+            _setup()
+    else:
+        _setup()
+
+
+@task
+def change_hostname():
+    sudo('scutil --set HostName {}.bhp.org.bw'.format(env.server_name))
+
+
+@task
 def update_project():
     def _setup():
         execute(setup_bcpp_config)
@@ -685,7 +728,7 @@ def install_packages():
     with prefix('workon bcpp'):
         with cd(env.source_dir):
             for repo in REPOS:
-                local('pip install -e ./{}/'.format(repo))
+                run('pip install -e ./{}/'.format(repo))
 
 
 @task
@@ -722,12 +765,12 @@ def initial_setup():
     execute(make_keys_dir)
     execute(mkdir_transactions_folders)
     execute(set_debug_false)
-#     execute(setup_ssh_key_pair)
+    execute(setup_ssh_key_pair)
     execute(create_db_or_dropN_create_db)
     execute(mysql_tzinfo)
-#     execute(restore_database)
-#     execute(fake_migrations)
-#     execute(migrate)
+    execute(restore_database)
+    execute(fake_migrations)
+    execute(migrate)
     execute(move_keys_to_prep_notebook)
     execute(setup_crypto_scritps)
     execute(setup_nginx)
