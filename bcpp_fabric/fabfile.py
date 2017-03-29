@@ -786,6 +786,8 @@ def update_field_nginx():
 
 @task
 def update_field():
+    run('git config --global user.email django@bhp.org.bw')
+    run('git config --global user.name django')
     with cd('{}/{}'.format(env.source_dir, 'bcpp')):
         with prefix('workon bcpp'):
             run('git stash save')
@@ -804,9 +806,8 @@ def update_field():
         with prefix('workon bcpp'):
             run('pip uninstall django-crypto-fields -y')
             for repo in repo:
-                with cd(repo):
-                    run('git checkout master')
-                    run('pip install -e ./{}/'.format(repo))
+                run('git checkout master')
+                run('pip install -e ./{}/'.format(repo))
     execute(update_field_nginx)
 
 
