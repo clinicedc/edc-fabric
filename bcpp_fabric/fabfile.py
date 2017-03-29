@@ -33,7 +33,7 @@ env.usergroup = 'django'
 env.account = 'django'
 env.mysql_root_passwd = 'cc3721b'
 env.server = '10.113.201.142'
-env.server_name = 'mmankgodi'
+env.server_name = 'lentsweletau'
 env.local_path = os.path.join(BASE_DIR, env.database_file)
 
 env.server_ssh_key_location = 'django@10.113.201.134:~/'
@@ -50,7 +50,7 @@ FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
 
 env.virtualenv_name = 'bcpp'
 env.database_folder = '/Users/django/databases/community'
-env.source_dir = '/Users/django/source'
+env.source_dir = '/home/django/source'
 PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
 env.python_dir = '/usr/bin'
 env.update_repo = False
@@ -473,9 +473,9 @@ def restart_webserver():
 def update_server():
     def _setup():
         execute(setup_bcpp_config)
-        execute(setup_crypto_scritps)
-        execute(make_keys_dir)
-        execute(change_hostname)
+#         execute(setup_crypto_scritps)
+#         execute(make_keys_dir)
+#         execute(change_hostname)
         with prefix('workon bcpp'):
             with cd(PROJECT_DIR):
                 run('git reset HEAD *')
@@ -770,11 +770,24 @@ def chown(name, dirr=True):
 
 
 @task
+def update_field():
+    with cd(env.source_dir):
+        run('pip install -e ./django-crypto-fields/')
+    repo = ['bcpp', 'edc-map']
+    with cd(env.source_dir):
+        with cd(repo):
+            run('git stash save')
+            run('git pull')
+            run('git stash pop')
+    execute(restart_webserver)
+
+
+@task
 def initial_setup():
-    execute(set_device_id)
-    execute(disable_apache_on_startup)
-    execute(remove_virtualenv)
-    execute(create_virtualenv)
+#     execute(set_device_id)
+#     execute(disable_apache_on_startup)
+#     execute(remove_virtualenv)
+#     execute(create_virtualenv)
     execute(install_dependencies)
     execute(install_local_repos)
     execute(make_keys_dir)
