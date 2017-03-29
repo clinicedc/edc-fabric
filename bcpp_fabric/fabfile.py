@@ -776,7 +776,7 @@ def update_field_nginx():
     put(os.path.join(NGINX_DIR, 'nginx.conf'),
         '/usr/local/etc/nginx/nginx.conf', use_sudo=True)
     with prefix('workon bcpp'):
-        with cd('{}/{}', env.source_dir, 'bcpp'):
+        with cd('{}'.format(env.source_dir, 'bcpp')):
             run('python manage.py collectstatic')
     execute(restart_webserver)
 
