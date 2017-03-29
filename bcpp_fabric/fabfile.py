@@ -788,13 +788,16 @@ def update_field_nginx():
 def update_field():
     with cd(env.source_dir):
         run('pip install -e ./django-crypto-fields/')
-    repo = ['bcpp', 'edc-map']
+        run('git clone https://github.com/botswana-harvard/bcpp-follow.git')
+        with settings(warn_only=True):
+            run('git clone https://github.com/erikvw/django-crypto-fields.git')
+    repo = ['bcpp', 'edc-map', 'bcpp-follow', 'django-crypto-fields']
     with cd(env.source_dir):
         with cd(repo):
             run('git stash save')
             run('git pull')
             run('git stash pop')
-    execute(restart_webserver)
+    execute(update_field_nginx)
 
 
 @task
