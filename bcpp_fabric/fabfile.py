@@ -50,7 +50,7 @@ FAB_SQL_DIR = a_dir(FAB_DIR, 'sql')
 
 env.virtualenv_name = 'bcpp'
 env.database_folder = '/Users/django/databases/community'
-env.source_dir = '/home/django/source'
+env.source_dir = '/Users/django/source'
 PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
 env.python_dir = '/usr/bin'
 env.update_repo = False
