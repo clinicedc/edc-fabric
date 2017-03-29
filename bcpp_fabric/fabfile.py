@@ -810,6 +810,9 @@ def update_field():
                 with cd(repo):
                     run('git checkout master')
                 run('pip install -e ./{}/'.format(repo))
+
+    put(os.path.join(GUNICORN_DIR, 'gunicorn_startup.sh'),
+        os.path.join(env.source_dir, 'bash_scripts', 'gunicorn_startup.sh'))
     execute(update_field_nginx)
 
 
