@@ -786,17 +786,27 @@ def update_field_nginx():
 
 @task
 def update_field():
-    with cd(env.source_dir):
-        run('pip install -e ./django-crypto-fields/')
-        run('git clone https://github.com/botswana-harvard/bcpp-follow.git')
-        with settings(warn_only=True):
-            run('git clone https://github.com/erikvw/django-crypto-fields.git')
-    repo = ['bcpp', 'edc-map', 'bcpp-follow', 'django-crypto-fields']
-    with cd(env.source_dir):
-        with cd(repo):
+    with cd('{}/{}'.format(env.source_dir, 'bcpp')):
+        with prefix('workon bcpp'):
             run('git stash save')
             run('git pull')
             run('git stash pop')
+
+    with cd('{}/{}'.format(env.source_dir, 'edc-map')):
+        run('git pull')
+
+    with cd(env.source_dir):
+        with settings(warn_only=True):
+            run('git clone https://github.com/erikvw/django-crypto-fields.git')
+            run('git clone https://github.com/botswana-harvard/bcpp-follow.git')
+    repo = ['bcpp-follow', 'django-crypto-fields']
+    with cd(env.source_dir):
+        with prefix('workon bcpp'):
+            run('pip uninstall django-crypto-fields -y')
+            for repo in repo:
+                with cd(repo):
+                    run('git checkout master')
+                    run('pip install -e ./{}/'.format(repo))
     execute(update_field_nginx)
 
 
