@@ -403,7 +403,7 @@ def setup_launch_webserver():
 def setup_gunicorn():
     with prefix('workon bcpp'):
         run('pip install gunicorn')
-    put(os.path.join(GUNICORN_DIR, 'gunicorn.conf.py'), PROJECT_DIR, use_sudo=True)
+    put(os.path.join(GUNICORN_DIR, 'gunicorn.conf.py'), '/Users/django/source/bcpp/gunicorn.conf.py', use_sudo=True)
     with cd(PROJECT_DIR):
         run('mkdir -p logs')
         chmod('755', os.path.join(PROJECT_DIR, 'logs'), dirr=True)
@@ -767,6 +767,18 @@ def chown(name, dirr=True):
     else:
         sudo('chown {account}:staff {filename}'.format(
             account=env.account, filename=name))
+
+
+@task
+def update_field_nginx():
+    with cd('{}/{}/{}/{}'.format(env.source_dir, 'bcpp', 'bcpp', 'static')):
+        run('rm -rf *')
+    put(os.path.join(NGINX_DIR, 'nginx.conf'),
+        '/usr/local/etc/nginx/nginx.conf', use_sudo=True)
+    with prefix('workon bcpp'):
+        with cd('{}/{}', env.source_dir, 'bcpp'):
+            run('python manage.py collectstatic')
+    execute(restart_webserver)
 
 
 @task
