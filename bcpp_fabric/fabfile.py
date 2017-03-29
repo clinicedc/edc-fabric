@@ -773,8 +773,10 @@ def chown(name, dirr=True):
 def update_field_nginx():
     with cd('{}/{}/{}/{}'.format(env.source_dir, 'bcpp', 'bcpp', 'static')):
         run('rm -rf *')
-    put(os.path.join(NGINX_DIR, 'nginx.conf'),
-        '/usr/local/etc/nginx/nginx.conf', use_sudo=True)
+
+    put(os.path.join(NGINX_DIR, 'bcpp.conf'),
+        '/usr/local/etc/nginx/sites-available/bcpp.conf', use_sudo=True)
+
     with prefix('workon bcpp'):
         with cd('{}/{}'.format(env.source_dir, 'bcpp')):
             run('python manage.py collectstatic')
