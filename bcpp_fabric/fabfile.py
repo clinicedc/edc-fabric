@@ -804,9 +804,11 @@ def update_field():
     repo = ['bcpp-follow', 'django-crypto-fields']
     with cd(env.source_dir):
         with prefix('workon bcpp'):
-            run('pip uninstall django-crypto-fields -y')
+            with settings(warn_only=True):
+                run('pip uninstall django-crypto-fields -y')
             for repo in repo:
-                run('git checkout master')
+                with cd(repo):
+                    run('git checkout master')
                 run('pip install -e ./{}/'.format(repo))
     execute(update_field_nginx)
 
