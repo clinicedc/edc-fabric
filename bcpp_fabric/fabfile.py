@@ -780,6 +780,7 @@ def update_field_nginx():
     with prefix('workon bcpp'):
         with cd('{}/{}'.format(env.source_dir, 'bcpp')):
             run('python manage.py collectstatic')
+            run('python manage.py fetch_map_images plot.plot 10')
     execute(restart_webserver)
 
 
