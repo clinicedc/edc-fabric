@@ -1,11 +1,22 @@
 # bcpp-fabric
 
-### Setup fabric
+### Install `fabcric`
+
+On Ubuntu you need to install these first
+
+    sudo apt-get install python3-dev libssl-dev
+
+Update pip
+
+    pip install -U pip ipython
+
 Make a virtualenv 
 ```bash
 mkvirtualenv bcpp-fabric -p python3 --no-site-packages
 workon bcpp-fabric
 ```
+### Setup bcpp-fabric
+
 Clone fabric repo
 
 ```bash
