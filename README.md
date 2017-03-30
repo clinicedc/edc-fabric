@@ -6,7 +6,7 @@ On Ubuntu you need to install these first
 
     sudo apt-get install python3-dev libssl-dev
 
-Make a virtualenv and switch to it
+Make a new clean virtualenv
 
     mkvirtualenv bcpp-fabric -p python3 --no-site-packages
 
