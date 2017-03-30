@@ -3,7 +3,7 @@
 ### Setup fabric
 Make a virtualenv 
 ```bash
-mkvirtualenv -p python3 bcpp-fabric
+mkvirtualenv bcpp-fabric -p python3 --no-site-packages
 workon bcpp-fabric
 ```
 Clone fabric repo
