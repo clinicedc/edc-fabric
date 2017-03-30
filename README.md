@@ -1,6 +1,6 @@
 # bcpp-fabric
 
-## Install `fabric` and `bcpp_fabric` in a virtualenv
+## Install `Fabric3` and `bcpp_fabric` in a virtualenv
 
 (to install `virtualenvwrapper` see https://virtualenvwrapper.readthedocs.io/en/latest/#)
 
@@ -20,9 +20,9 @@ Update pip in your new virtualenv
 
     pip install -U pip ipython
 
-Install `fabric` in your new virtualenv
+Install `Fabric3` in your new virtualenv
 
-    pip install fabric
+    pip install Fabric3
 
 Create a source code folder for all repos
 
@@ -69,7 +69,7 @@ Start Deployment
 ```bash
 cd ~/source/bcpp-fabric/bcpp-fabric
 workon bcpp-fabric
-fab deploy
+fab deploy:mysqlpwd=<pass>,
 
 ```
 ### Update existing project.
