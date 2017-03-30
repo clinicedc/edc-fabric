@@ -2,6 +2,8 @@
 
 ## Install `fabric` and `bcpp_fabric` in a virtualenv
 
+(to install `virtualenvwrapper` see https://virtualenvwrapper.readthedocs.io/en/latest/#)
+
 On Ubuntu you need to install these first
 
     sudo apt-get install python3-dev libssl-dev
