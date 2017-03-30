@@ -1,34 +1,38 @@
 # bcpp-fabric
 
-### Install `fabcric`
+## Install `fabric` and `bcpp_fabric` in a virtualenv
 
 On Ubuntu you need to install these first
 
     sudo apt-get install python3-dev libssl-dev
 
-Update pip
+Make a virtualenv and switch to it
+
+    mkvirtualenv bcpp-fabric -p python3 --no-site-packages
+
+Switch to new virtualenv `bcpp-fabric`
+
+    workon bcpp-fabric
+
+Update pip in your new virtualenv
 
     pip install -U pip ipython
 
-Make a virtualenv 
-```bash
-mkvirtualenv bcpp-fabric -p python3 --no-site-packages
-workon bcpp-fabric
-```
-### Setup bcpp-fabric
+Install `fabric` in your new virtualenv
 
-Clone fabric repo
+    pip install fabric
 
-```bash
-mkdir -p source ; cd source
-git clone https://github.com/botswana-harvard/bcpp-fabric.git
-```
+Create a source code folder for all repos
+
+    mkdir ~/source
+
+Clone `bcpp-fabric` repo into the new `source` folder
+
+    cd ~/source && git clone https://github.com/botswana-harvard/bcpp-fabric.git
+
 Install requirements
 
-```bash
-cd bcpp-fabric
-pip install -r requirements.txt
-```
+    cd ~/source/bcpp-fabric && pip install -r requirements.txt
 
 ### First time deployment with `fabric`.
 
