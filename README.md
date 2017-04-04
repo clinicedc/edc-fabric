@@ -2,19 +2,12 @@
 
 ## Install `Fabric3` and `bcpp_fabric` in a virtualenv
 
-(to install `virtualenvwrapper` see https://virtualenvwrapper.readthedocs.io/en/latest/#)
-
-On Ubuntu you need to install these first
-
-    sudo apt-get install python3-dev libssl-dev
-
 Make a new clean virtualenv
 
-    mkvirtualenv bcpp-fabric -p python3 --no-site-packages
-
-Switch to new virtualenv `bcpp-fabric`
-
-    workon bcpp-fabric
+    mkdir ~/.venv
+    cd ~/.venv
+    python3 -m venv bcpp-fabric
+    source ~/.venv/bin/activate
 
 Update pip in your new virtualenv
 
@@ -24,17 +17,15 @@ Install `Fabric3` in your new virtualenv
 
     pip install Fabric3
 
-Create a source code folder for all repos
-
-    mkdir ~/source
-
-Clone `bcpp-fabric` repo into the new `source` folder
+Clone `bcpp-fabric`, lets clone this in `~/source`
 
     cd ~/source && git clone https://github.com/botswana-harvard/bcpp-fabric.git
 
-Install requirements
+Run the `prepare_local_for_deploy` task
 
-    cd ~/source/bcpp-fabric && pip install -r requirements.txt
+    cd ~/source/bcpp-fabric/bcpp_fabric/new
+    fab prepare_local_for_deploy
+
 
 ### First time deployment with `fabric`.
 

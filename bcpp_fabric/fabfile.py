@@ -1,22 +1,19 @@
-from __future__ import with_statement
-from fabric.api import local
-from unipath import Path
 import os
+
+from pathlib import PurePath
 
 from fabric.api import *
 from fabric.contrib.files import exists
 from fabric.utils import error, warn
-# from fabric.contrib.files import exists
 from fabric.colors import green, blue, red
 from fabric.contrib.console import confirm
 
 from hosts import HOSTS
 from repo_list import REPOS
 from databases import DATABASES, DATABASE_FILES
-from fabric.decorators import parallel
 
-BASE_DIR = Path(os.path.dirname(os.path.realpath(__file__)))
-NGINX_DIR = os.path.join(BASE_DIR.ancestor(1), 'nginx_deployment')
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
+NGINX_DIR = os.path.join(str(PurePath(BASE_DIR).parent), 'nginx_deployment')
 GUNICORN_DIR = NGINX_DIR
 hosts = HOSTS
 database_files = DATABASE_FILES
@@ -24,7 +21,8 @@ env.old_code = 12
 env.new_code = 30
 env.repos = REPOS
 env.hosts = [host for host in hosts.keys()]
-env.database_files = [database_files for database_files in database_files.keys()]
+env.database_files = [
+    database_files for database_files in database_files.keys()]
 env.passwords = hosts
 env.password = HOSTS.get(env.host_string)
 env.database_file = env.database_files[0]
@@ -74,8 +72,8 @@ env.old_community = 'digawana'
 
 @task
 def print_test():
-# #     run('mkdir -p {}'.format(env.database_folder))
-# #     print(env.repo_unpacked)
+    # #     run('mkdir -p {}'.format(env.database_folder))
+    # #     print(env.repo_unpacked)
     print(env.local_path)
     print(get_device_id())
     print(env.password)
@@ -90,6 +88,7 @@ def custom_config():
 
 class FabricException(Exception):
     pass
+
 
 env.abort_exception = FabricException
 
@@ -160,12 +159,16 @@ def install_requirements():
 def create_db_or_dropN_create_db():
     if env.drop_and_create_db:
         try:
-            run("mysql -uroot -p%s -Bse 'drop database edc; create database edc character set utf8;'" % (env.mysql_root_passwd))
+            run("mysql -uroot -p%s -Bse 'drop database edc; create database edc character set utf8;'" %
+                (env.mysql_root_passwd))
         except FabricException:
-            run("mysql -uroot -p%s -Bse 'create database edc character set utf8;'" % (env.mysql_root_passwd))
+            run("mysql -uroot -p%s -Bse 'create database edc character set utf8;'" %
+                (env.mysql_root_passwd))
         else:
-            run("mysql -uroot -p%s -Bse 'alter table mysql.time_zone_transition_type modify Abbreviation CHAR(50);'" % (env.mysql_root_passwd))
+            run("mysql -uroot -p%s -Bse 'alter table mysql.time_zone_transition_type modify Abbreviation CHAR(50);'" %
+                (env.mysql_root_passwd))
             print(green('edc database has been created.'))
+
 
 @task
 def compress_db():
@@ -295,7 +298,8 @@ def compress_keys():
 @task
 def tranfer_compressed_keys():
     with cd(env.source_dir):
-        put(os.path.join(BASE_DIR, env.keys), os.path.join(PROJECT_DIR, env.keys), use_sudo=True)
+        put(os.path.join(BASE_DIR, env.keys), os.path.join(
+            PROJECT_DIR, env.keys), use_sudo=True)
 
 
 @task
@@ -343,7 +347,8 @@ def get_device_id():
             device_id += 80
         return device_id
     except ValueError:
-        raise ValueError('{0} is not an expected hostname'.format(hostname()[0]))
+        raise ValueError(
+            '{0} is not an expected hostname'.format(hostname()[0]))
 
 
 @task
@@ -403,13 +408,14 @@ def setup_launch_webserver():
 def setup_gunicorn():
     with prefix('workon bcpp'):
         run('pip install gunicorn')
-    put(os.path.join(GUNICORN_DIR, 'gunicorn.conf.py'), '/Users/django/source/bcpp/gunicorn.conf.py', use_sudo=True)
+    put(os.path.join(GUNICORN_DIR, 'gunicorn.conf.py'),
+        '/Users/django/source/bcpp/gunicorn.conf.py', use_sudo=True)
     with cd(PROJECT_DIR):
         run('mkdir -p logs')
         chmod('755', os.path.join(PROJECT_DIR, 'logs'), dirr=True)
         with cd(os.path.join(PROJECT_DIR, 'logs')):
-                run('touch gunicorn-access.log')
-                run('touch gunicorn-error.log')
+            run('touch gunicorn-access.log')
+            run('touch gunicorn-error.log')
     print(green('gunicorn setup completed.'))
 
 
@@ -625,7 +631,7 @@ def mysql_tzinfo():
 
 @task
 def setup_bcpp_config():
-        put(os.path.join(BASE_DIR, 'etc', 'bcpp.conf'),
+    put(os.path.join(BASE_DIR, 'etc', 'bcpp.conf'),
         '/etc/bcpp.conf', use_sudo=True)
 
 
@@ -667,7 +673,8 @@ def modify_settings(replacements):
 @task
 def set_debug_false():
     with cd(PROJECT_DIR):
-        replace_debug = sudo("sed -i.bak s'/DEBUG = True/DEBUG = False/' {}" .format(SETTINGS_FILE))
+        replace_debug = sudo(
+            "sed -i.bak s'/DEBUG = True/DEBUG = False/' {}" .format(SETTINGS_FILE))
         if replace_debug.succeeded:
             print('File ran in debug false mode >>>')
         else:
@@ -677,7 +684,8 @@ def set_debug_false():
 @task
 def set_debug_true():
     with cd(PROJECT_DIR):
-        replace_debug = sudo("sed -i.bak s'/DEBUG = False/DEBUG = True/' {}" .format(SETTINGS_FILE))
+        replace_debug = sudo(
+            "sed -i.bak s'/DEBUG = False/DEBUG = True/' {}" .format(SETTINGS_FILE))
         if replace_debug.succeeded:
             print('File ran in debug True mode >>>')
         else:
@@ -701,7 +709,8 @@ def clone_packages():
         for repo in REPOS:
             try:
                 print(blue('Cloning {}'.format(repo)))
-                local('cd {}; git clone https://github.com/botswana-harvard/{}.git'.format(repo_dir, repo))
+                local(
+                    'cd {}; git clone https://github.com/botswana-harvard/{}.git'.format(repo_dir, repo))
             except FabricException:
                 repo_path = os.path.join(repo_dir, repo)
                 print(blue('Updating existing {} repo'.format(repo)))
@@ -710,7 +719,7 @@ def clone_packages():
 
     if os.path.join(BASE_DIR, 'all_repos.tar.gz'):
         with settings(warn_only=True):
-            local('rm {}'.format(repo_dir+'.tar.gz'))
+            local('rm {}'.format(repo_dir + '.tar.gz'))
     local('tar -czvf all_repos.tar.gz -C {} .'.format(repo_dir))
 
 
@@ -818,10 +827,10 @@ def update_field():
 
 @task
 def initial_setup():
-#     execute(set_device_id)
-#     execute(disable_apache_on_startup)
-#     execute(remove_virtualenv)
-#     execute(create_virtualenv)
+    #     execute(set_device_id)
+    #     execute(disable_apache_on_startup)
+    #     execute(remove_virtualenv)
+    #     execute(create_virtualenv)
     execute(install_dependencies)
     execute(install_local_repos)
     execute(make_keys_dir)

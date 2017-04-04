@@ -1,0 +1,28 @@
+[default]
+target_os = Darwin
+user = {user}
+project_appname = {project_appname}
+local_source_root = ~/source/
+remote_source_root = ~/source/
+deployment_root = ~/deployment
+etc_dir = /etc/{project_appname}
+
+[python]
+python_version = 3.5.1
+python_package = python-3.5.1-macosx10.6.pkg
+python_package_url = https://www.python.org/ftp/python/3.5.1/python-3.5.1-macosx10.6.pkg
+
+[venv]
+venv_name = {project_appname}
+
+[repositories]
+project_repo_url = {project_repo_url}
+
+[crypto_fields]
+dmg_filename = crypto_keys.dmg
+key_volume = /Volumes/crypto_keys
+
+[mysql]
+archive = 
+restore_from_archive = yes
+create_db = no

@@ -1,4 +1,4 @@
-from fabric.api import *
+from fabric.api import sudo, task, env
 
 from .constants import LINUX, MACOSX
 

@@ -1,30 +1,100 @@
 import configparser
 import os
 
-from fabric.api import *
+from fabric.api import env
+from fabric.contrib.console import confirm
 
 from .constants import LINUX, MACOSX
 
 
-def update_env(config_path=None):
+def update_fabric_env(fabric_config_path=None):
     config = configparser.RawConfigParser()
+    fabric_config_path = os.path.expanduser(
+        fabric_config_path or env.fabric_config_path)
+    print(fabric_config_path)
+    if not os.path.exists(fabric_config_path):
+        raise Exception(
+            'Missing config file. Expected {}'.format(fabric_config_path))
+    else:
+        print('config file', fabric_config_path)
+        config.read(fabric_config_path)
+        for key, value in config['default'].items():
+            setattr(env, key, value)
+            print(key, getattr(env, key))
+        for key, value in config['python'].items():
+            setattr(env, key, value)
+            print(key, getattr(env, key))
+        for key, value in config['venv'].items():
+            setattr(env, key, value)
+            print(key, getattr(env, key))
+        for key, value in config['repositories'].items():
+            if value.lower() in ['true', 'yes']:
+                value = True
+            elif value.lower() in ['false', 'no']:
+                value = False
+            setattr(env, key, value)
+            print(key, getattr(env, key))
+        for key, value in config['crypto_fields'].items():
+            setattr(env, key, value)
+            print(key, getattr(env, key))
+        # env.dmg_passphrases = config.get('dmg_passphrases', {})
+        if env.target_os == LINUX:
+            env.python_path = '/usr/bin/'
+            env.bash_profile = '~/.bash_aliases'
+        elif env.target_os == MACOSX:
+            env.python_path = '/usr/local/bin/'
+            env.bash_profile = '~/.bash_profile'
+            env.dmg_path = env.dmg_path or os.path.join(env.etc_dir)
+            print('dmg_path (updated)', env.dmg_path)
+    env.create_env = True
+    env.update_requirements = True
+    env.update_collectstatic = True
+    env.update_collectstatic_js_reverse = True
+
+
+def update_fabric_env_hosts(config_path=None):
+    config = configparser.RawConfigParser()
+    config_path = config_path or '~/deployment/secrets.conf'
+    config_path = os.path.expanduser(config_path)
+    print('Reading hosts from ', config_path)
     config.read(config_path)
-    for key, value in config['default'].items():
-        setattr(env, key, value)
-        print(key, getattr(env, key))
-    for key, value in config['virtualenv'].items():
-        setattr(env, key, value)
-        print(key, getattr(env, key))
-    for key, value in config['repositories'].items():
-        if value.lower() in ['true', 'yes']:
-            value = True
-        elif value.lower() in ['false', 'no']:
-            value = False
-        setattr(env, key, value)
-        print(key, getattr(env, key))
-    if env.target_os == LINUX:
-        env.python_path = '/usr/bin/'
-        env.bash_profile = '~/.bash_aliases'
-    elif env.target_os == MACOSX:
-        env.python_path = '/usr/local/bin/'
-        env.bash_profile = '~/.bash_profiles'
+    for host, pwd in config['hosts'].items():
+        if '@' not in host:
+            host = '{}@{}'.format(env.user, host)
+        env.passwords.update({'{}:22'.format(host): pwd})
+        env.hosts.append(host)
+    print('hosts', env.hosts)
+    print('passwords', env.passwords)
+
+
+def update_fabric_env_device_ids(config_path=None):
+    """Reads config from device_ids.conf.
+
+    Format: hostname = device_role,device_id
+    Example: myhostname = Client,55
+    """
+    config = configparser.RawConfigParser()
+    config_path = config_path or '~/deployment/device_ids.conf'
+    config_path = os.path.expanduser(config_path)
+    print('Reading device_ids from ', config_path)
+    config.read(config_path)
+    env.device_ids = {}
+    env.device_roles = {}
+    for host, device in config['edc_device'].items():
+        device_role, device_id = device.split(',')
+        env.device_ids.update({host: device_id})
+        env.device_roles.update({host: device_role})
+    print('device_ids', env.device_ids)
+
+
+def update_fabric_env_key_volumes(config_path=None):
+    config = configparser.RawConfigParser()
+    config_path = config_path or '~/deployment/secrets.conf'
+    config_path = os.path.expanduser(config_path)
+    print('Reading key_volumes from ', config_path)
+    config.read(config_path)
+    env.key_volume_password = config['key_volumes'].get('key_volume_password')
+#     env.key_volumes = {}
+#     for host, pwd in config['key_volumes'].items():
+#         env.key_volumes.update({host: pwd})
+#     print('key_volumes', env.key_volumes)
