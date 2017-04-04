@@ -44,7 +44,15 @@ def install_mysql(target_os=None):
 
 @task
 def install_mysql_macosx():
-    pass
+    result = run('mysql -V')
+    print(result)
+    if result != 'Ver 14.14 Distrib 5.7.15, for osx10.12 (x86_64)':
+        run('brew services stop mysql', warn_only=True)
+        run('brew install mysql')
+        run('brew tap homebrew/services')
+        run('brew services start mysql')
+        run('mysqladmin -u root password \'{dbpassword}\''.format(env.dbpassword))
+        result = run('mysql -V')
 
 
 @task

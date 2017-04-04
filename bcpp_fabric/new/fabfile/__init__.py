@@ -6,3 +6,4 @@ from .environment import (
     update_fabric_env_key_volumes)
 from .files import mount_dmg, dismount_dmg
 from .repositories import read_requirements
+from .mysql import install_mysql_macosx

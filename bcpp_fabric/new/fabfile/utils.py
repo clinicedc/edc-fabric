@@ -1,17 +1,17 @@
+import configparser
 import csv
 import os
 import re
 
 from io import StringIO
 
-from fabric.api import env, prefix, local, run, cd, sudo, get
+from fabric.api import env, prefix, local, run, cd, sudo, get, task
 from fabric.colors import red
 from fabric.contrib.files import append, contains, exists
 from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
-from pathlib import PurePath
-import configparser
+from .repositories import get_repo_name
 
 # sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.locate.plist
 
@@ -34,10 +34,10 @@ def create_venv(name=None, venv_dir=None, clear_venv=None, create_env=None,
             run('mkdir {venv_dir}'.format(venv_dir=venv_dir))
         with cd(venv_dir):
             if clear_venv or not exists(os.path.join(venv_dir, name)):
-                run('python3 -m venv --clear {path}'.format(path=os.path.join(venv_dir, name)),
+                run('python3 -m venv --clear {path} {name}'.format(path=os.path.join(venv_dir, name), name=name),
                     warn_only=True)
         with prefix('source {activate}'.format(activate=os.path.join(venv_dir, name, 'bin', 'activate'))):
-            run('pip install -U pip ipython')
+            run('pip3 install -U pip setuptools wheel ipython')
         if update_requirements:
             with cd(env.project_repo_root):
                 with prefix('source {activate}'.format(activate=os.path.join(venv_dir, name, 'bin', 'activate'))):
@@ -47,8 +47,6 @@ def create_venv(name=None, venv_dir=None, clear_venv=None, create_env=None,
 
 def install_venv(venv_name=None, venv_dir=None):
     venv_dir = venv_dir or DEFAULT_VENV_DIR
-    if not exists(os.path.join(env.deployment_root, 'venv')):
-        abort('venv folder missing. Have you deployed the tarball yet?')
     if not exists(venv_dir):
         run('mkdir {venv_dir}'.format(venv_dir=venv_dir))
     if exists('~/.virtualenvs'):
@@ -79,6 +77,26 @@ def install_python3(python_version=None):
         sudo('apt-get install python3-pip ipython3 python3={}*'.format(python_version))
 
 
+def install_gpg(path=None):
+    """Installs gpg.
+    """
+    if env.target_os == MACOSX:
+        with cd(env.deployment_download_dir):
+            result = sudo('hdiutil attach {gpg_dmg}'.format(
+                gpg_dmg=env.gpg_dmg))
+            mountpoint = [
+                i.strip() for i in result.split('\n')[-1:][0].split('\t')][-1:][0]
+            mountpoint = mountpoint.replace(' ', '\ ')
+            result = run('ls -la {}'.format(mountpoint))
+            sudo('installer -pkg {path} -target /'.format(
+                path=os.path.join('/Volumes', mountpoint, 'Install.pkg')))
+            run('hdiutil detach {path}'.format(
+                path=os.path.join('/Volumes', mountpoint)), warn_only=True)
+    elif env.target_os == LINUX:
+        pass
+        # sudo('apt-get install python3-pip ipython3 python3={}*'.format(python_version))
+
+
 def check_deviceids(app_name=None):
     """Checks remote device id against conf dictionary.
 
@@ -100,20 +118,23 @@ def check_deviceids(app_name=None):
 
 def get_hosts(path=None, gpg_filename=None):
     """Returns a list of hostnames extracted from the hosts.conf.gpg.
+
+    Does nothing if env.hosts is already set.
     """
     # see also roledefs
     hosts = []
-    conf_string = local('cd {path}&&gpg --decrypt {gpg_filename}'.format(
-        path=path, gpg_filename=gpg_filename), capture=True)
-    conf_string = conf_string.replace(
-        'gpg: WARNING: message was not integrity protected', '\n')
-    conf_data = conf_string.split('\n')
-    csv_reader = csv.reader(conf_data)
-    for index, row in enumerate(csv_reader):
-        if index == 0:
-            continue
-        hosts.append(row[0])
-    return hosts
+    if not env.hosts:
+        conf_string = local('cd {path}&&gpg2 --decrypt {gpg_filename}'.format(
+            path=path, gpg_filename=gpg_filename), capture=True)
+        conf_string = conf_string.replace(
+            'gpg: WARNING: message was not integrity protected', '\n')
+        conf_data = conf_string.split('\n')
+        csv_reader = csv.reader(conf_data)
+        for index, row in enumerate(csv_reader):
+            if index == 0:
+                continue
+            hosts.append(row[0])
+    return hosts or env.hosts
 
 
 def get_device_ids(hostname_pattern=None):
@@ -134,38 +155,84 @@ def get_device_ids(hostname_pattern=None):
     return device_ids
 
 
-def download_pip_archives():
-    """Downloads pip archives into deployment pip dir.
+def pip_install_from_cache():
+    """pip installs required packages from the local cache.
     """
-    if exists(env.deployment_pip_dir):
-        run('rm -rf {deployment_pip_dir}'.format(
-            deployment_pip_dir=env.deployment_pip_dir))
-        run('mkdir -p {deployment_pip_dir}'.format(
-            deployment_pip_dir=env.deployment_pip_dir))
+    package_names = get_required_package_names()
+    for package_name in package_names:
+        with cd(env.deployment_pip_dir):
+            with prefix('source {}'.format(os.path.join(env.venv_dir, env.venv_name, 'bin', 'activate'))):
+                run('pip install --no-index --find-links=. {package_name}'.format(
+                    package_name=package_name))
+
+
+def get_required_package_names():
+    package_names = []
     with cd(env.project_repo_root):
-        run('pip download --python-version 3 --only-binary=:all: '
-            '-d {deployment_pip_dir} -r {requirements}'.format(
-                deployment_pip_dir=env.deployment_pip_dir,
-                requirements=env.requirements_file))
+        data = run('cat {requirements}'.format(
+            requirements=env.requirements_file))
+        data = data.split('\n')
+        for line in data:
+            if 'botswana-harvard' in line or 'erikvw' in line:
+                repo_url = line.split('@')[0].replace('git+', '')
+                package_names.append(get_repo_name(repo_url))
+    return package_names
 
 
-def get_archive_name(deployment_root=None, release=None):
+def get_archive_name():
     """Returns the name of the deployment archive.
     """
-    path = PurePath(env.deployment_root).parts[-1:][0]
-    return '{path}.{release}.tar.bz2'.format(path=path, release=release)
+    return '{project_appname}.{release}.tar.bz2'.format(
+        project_appname=env.project_appname, release=env.project_release)
 
 
-def bootstrap_env(bootstrap_path=None):
+def bootstrap_env(path=None, filename=None):
     """Bootstraps env.
     """
+    path = os.path.join(os.path.expanduser(path), filename or 'bootstrap.conf')
     config = configparser.RawConfigParser()
-    config.read(os.path.expanduser(bootstrap_path))
+    config.read(os.path.expanduser(path))
+    env.deployment_download_dir = config['bootstrap']['deployment_download_dir']
     env.downloads_dir = config['bootstrap']['downloads_dir']
     env.target_os = config['bootstrap']['target_os']
     env.project_repo_url = config['bootstrap']['project_repo_url']
     env.deployment_root = config['bootstrap']['deployment_root']
     env.requirements_file = config['bootstrap']['requirements_file']
+    env.project_appname = config['bootstrap']['project_appname']
     env.fabric_conf = 'fabric.conf'
     env.hosts_conf = 'hosts.conf.gpg'
     env.secrets_conf = 'secrets.conf.gpg'
+
+
+def cut_releases(source_root_path=None):
+    source_root_path = source_root_path or '~/source'
+
+
+def update_env_secrets(config_root=None):
+    """Reads secrets into env from repo secrets_conf.gpg.
+    """
+    config_root = config_root or os.path.join(env.fabric_config_root, 'etc')
+    secrets_conf_path = os.path.join(config_root, env.secrets_conf)
+    if not exists(secrets_conf_path):
+        abort('Not found {secrets_conf_gpg_path}'.format(
+            secrets_conf_gpg_path=secrets_conf_path))
+    with cd(config_root):
+        config = decrypt_to_config(
+            gpg_filename=env.secrets_conf, section='secrets')
+        for key, value in config['secrets'].items():
+            setattr(env, key, value)
+
+
+def decrypt_to_config(gpg_filename=None, section=None):
+    """Returns a config by decrypting a conf file with a single section.
+    """
+    section = '[{section}]'.format(section=section)
+    conf_string = run('gpg2 --decrypt {gpg_filename}'.format(
+        gpg_filename=gpg_filename))
+    conf_string = conf_string.replace(
+        'gpg: WARNING: message was not integrity protected', '\n')
+    conf_string.split(section)[1]
+    config = configparser.RawConfigParser()
+    config.read_string('{section}\n{conf_string}\n'.format(
+        section=section, conf_string=conf_string.split(section)[1]))
+    return config

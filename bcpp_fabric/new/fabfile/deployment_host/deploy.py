@@ -1,5 +1,6 @@
-import configparser
 import os
+
+from pathlib import PurePath
 
 from fabric.api import task, env, run, cd
 from fabric.context_managers import lcd
@@ -11,7 +12,7 @@ from fabric.utils import abort
 from ..constants import MACOSX
 from ..environment import update_fabric_env
 from ..repositories import get_repo_name
-from ..utils import download_pip_archives, bootstrap_env
+from ..utils import bootstrap_env, update_env_secrets, get_archive_name
 
 # NGINX_DIR = os.path.join(str(PurePath(BASE_DIR).parent), 'nginx_deployment')
 # GUNICORN_DIR = NGINX_DIR
@@ -24,7 +25,7 @@ def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
                             skip_clone=None):
     """Prepares the deployment host.
     """
-    bootstrap_env(bootstrap_path=bootstrap_path)
+    bootstrap_env(path=bootstrap_path, filename='bootstrap.conf')
     env.project_repo_name = get_repo_name(env.project_repo_url)
     env.project_appname = env.project_repo_name.replace('-', '_')
     env.deployment_database_dir = os.path.join(env.deployment_root, 'database')
@@ -32,53 +33,24 @@ def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
     env.deployment_pip_dir = os.path.join(env.deployment_root, 'pip')
     env.deployment_download_dir = os.path.join(
         env.deployment_root, 'downloads')
-
     env.project_repo_root = os.path.join(
         env.deployment_root, env.project_repo_name)
     env.project_release = release
-
     env.fabric_config_root = os.path.join(env.project_repo_root, 'fabfile')
     env.fabric_config_path = os.path.join(
         env.project_repo_root, 'fabfile', 'conf', env.fabric_conf)
     prepare_deployment_dir()
-    prepare_deployment_repo(skip_clone=skip_clone, use_branch=use_branch)
+    # prepare_deployment_repo(skip_clone=skip_clone, use_branch=use_branch)
     if not exists(env.fabric_config_path):
         abort('Missing fabric config file. Expected {}'.format(
             env.fabric_config_path))
-    update_env_secrets()
     update_fabric_env()
+    update_env_secrets()
     put_python_package(path=env.downloads_dir)
-    download_pip_archives()
-
-
-def update_env_secrets(config_root=None):
-    """Reads secrets into env from repo secrets_conf.gpg.
-    """
-    config_root = config_root or os.path.join(env.fabric_config_root, 'etc')
-    secrets_conf_path = os.path.join(config_root, env.secrets_conf)
-    if not exists(secrets_conf_path):
-        abort('Not found {secrets_conf_gpg_path}'.format(
-            secrets_conf_gpg_path=secrets_conf_path))
-    with cd(config_root):
-        config = decrypt_to_config(
-            gpg_filename=env.secrets_conf, section='secrets')
-        for key, value in config['secrets'].items():
-            setattr(env, key, value)
-
-
-def decrypt_to_config(gpg_filename=None, section=None):
-    """Returns a config by decrypting a conf file with a single section.
-    """
-    section = '[{section}]'.format(section=section)
-    conf_string = run('gpg --decrypt {gpg_filename}'.format(
-        gpg_filename=gpg_filename))
-    conf_string = conf_string.replace(
-        'gpg: WARNING: message was not integrity protected', '\n')
-    conf_string.split(section)[1]
-    config = configparser.RawConfigParser()
-    config.read_string('{section}\n{conf_string}\n'.format(
-        section=section, conf_string=conf_string.split(section)[1]))
-    return config
+    put(os.path.join(os.path.expanduser(env.downloads_dir), env.gpg_dmg),
+        os.path.join(env.deployment_download_dir, env.gpg_dmg))
+    # pip_download_cache()
+    create_deployment_archive()
 
 
 def prepare_deployment_dir():
@@ -105,8 +77,8 @@ def prepare_deployment_repo(skip_clone=None, use_branch=None):
             run('git clone {project_repo_url}'.format(
                 project_repo_url=env.project_repo_url))
     with cd(env.project_repo_root):
-        run(
-            'git checkout --force {release}'.format(release=env.project_release))
+        run('git checkout --force {release}'.format(
+            release=env.project_release))
 
 
 def put_python_package(path=None):
@@ -121,3 +93,29 @@ def put_python_package(path=None):
                 local('wget {}'.format(env.python_package_url))
     put(os.path.join(local_path, env.python_package),
         os.path.join(env.deployment_download_dir, env.python_package))
+
+
+def pip_download_cache():
+    """Downloads pip packages into deployment pip dir.
+    """
+    if exists(env.deployment_pip_dir):
+        run('rm -rf {deployment_pip_dir}'.format(
+            deployment_pip_dir=env.deployment_pip_dir))
+        run('mkdir -p {deployment_pip_dir}'.format(
+            deployment_pip_dir=env.deployment_pip_dir))
+    with cd(env.project_repo_root):
+        # can't use
+        # run('pip download --python-version 3 --only-binary=:all: '
+        # as not all packages have a wheel (arrow, etc)
+        run('pip download '
+            '-d {deployment_pip_dir} -r {requirements}'.format(
+                deployment_pip_dir=env.deployment_pip_dir,
+                requirements=env.requirements_file), warn_only=True)
+
+
+def create_deployment_archive():
+    archive_name = get_archive_name()
+    with cd(str(PurePath(env.deployment_root).parent)):
+        run('tar -cjf {archive_name} {project_appname}'.format(
+            archive_name=archive_name,
+            project_appname=env.project_appname))

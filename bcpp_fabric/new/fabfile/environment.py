@@ -1,23 +1,21 @@
 import configparser
 import os
 
-from fabric.api import env
-from fabric.contrib.console import confirm
+from fabric.api import env, run
+from fabric.contrib.files import exists
+from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
 
 
-def update_fabric_env(fabric_config_path=None):
+def update_fabric_env():
     config = configparser.RawConfigParser()
-    fabric_config_path = os.path.expanduser(
-        fabric_config_path or env.fabric_config_path)
-    print(fabric_config_path)
-    if not os.path.exists(fabric_config_path):
-        raise Exception(
-            'Missing config file. Expected {}'.format(fabric_config_path))
+    if not exists(env.fabric_config_path):
+        abort('Missing config file. Expected {path}'.format(
+            path=env.fabric_config_path))
     else:
-        print('config file', fabric_config_path)
-        config.read(fabric_config_path)
+        data = run('cat {path}'.format(path=env.fabric_config_path))
+        config.read_string(data)
         for key, value in config['default'].items():
             setattr(env, key, value)
             print(key, getattr(env, key))
@@ -32,6 +30,9 @@ def update_fabric_env(fabric_config_path=None):
                 value = True
             elif value.lower() in ['false', 'no']:
                 value = False
+            setattr(env, key, value)
+            print(key, getattr(env, key))
+        for key, value in config['gpg'].items():
             setattr(env, key, value)
             print(key, getattr(env, key))
         for key, value in config['crypto_fields'].items():
