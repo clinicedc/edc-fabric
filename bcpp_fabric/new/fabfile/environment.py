@@ -53,19 +53,19 @@ def update_fabric_env():
     env.update_collectstatic_js_reverse = True
 
 
-def update_fabric_env_hosts(config_path=None):
-    config = configparser.RawConfigParser()
-    config_path = config_path or '~/deployment/secrets.conf'
-    config_path = os.path.expanduser(config_path)
-    print('Reading hosts from ', config_path)
-    config.read(config_path)
-    for host, pwd in config['hosts'].items():
-        if '@' not in host:
-            host = '{}@{}'.format(env.user, host)
-        env.passwords.update({'{}:22'.format(host): pwd})
-        env.hosts.append(host)
-    print('hosts', env.hosts)
-    print('passwords', env.passwords)
+# def update_fabric_env_hosts(config_path=None):
+#     config = configparser.RawConfigParser()
+#     config_path = config_path or '~/deployment/secrets.conf'
+#     config_path = os.path.expanduser(os.path.join(config_path, 'hosts.conf')
+#     print('Reading hosts from ', config_path)
+#     config.read(config_path)
+#     for host, pwd in config['hosts'].items():
+#         if '@' not in host:
+#             host = '{}@{}'.format(env.user, host)
+#         env.passwords.update({'{}:22'.format(host): pwd})
+#         env.hosts.append(host)
+#     print('hosts', env.hosts)
+#     print('passwords', env.passwords)
 
 
 def update_fabric_env_device_ids(config_path=None):

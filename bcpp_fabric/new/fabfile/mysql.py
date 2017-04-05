@@ -34,24 +34,23 @@ def drop_database(dbname=None, root_user=None, backup_first=None):
         root_user=root_user, dbname=dbname))
 
 
-def install_mysql(target_os=None):
-    target_os = target_os or env.target_os
-    if target_os == MACOSX:
+def install_mysql():
+    if env.target_os == MACOSX:
         install_mysql_macosx()
-    elif target_os == LINUX:
+    elif env.target_os == LINUX:
         install_mysql_linux()
 
 
-@task
 def install_mysql_macosx():
     result = run('mysql -V')
-    print(result)
-    if result != 'Ver 14.14 Distrib 5.7.15, for osx10.12 (x86_64)':
-        run('brew services stop mysql', warn_only=True)
-        run('brew install mysql')
+    if 'Ver 14.14 Distrib 5.7.17' not in result:
+        # run('brew services stop mysql', warn_only=True)
         run('brew tap homebrew/services')
+        run('brew install mysql')
         run('brew services start mysql')
         run('mysqladmin -u root password \'{dbpassword}\''.format(env.dbpassword))
+        run('brew switch mysql 5.7.17')
+        run('mysql_secure_installation')
         result = run('mysql -V')
 
 

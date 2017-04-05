@@ -3,9 +3,10 @@ import csv
 import os
 import re
 
+from datetime import datetime
 from io import StringIO
 
-from fabric.api import env, prefix, local, run, cd, sudo, get, task
+from fabric.api import env, prefix, local, run, cd, sudo, get, task, warn
 from fabric.colors import red
 from fabric.contrib.files import append, contains, exists
 from fabric.utils import abort
@@ -78,7 +79,7 @@ def install_python3(python_version=None):
 
 
 def install_gpg(path=None):
-    """Installs gpg.
+    """Installs gpg from a DMG.
     """
     if env.target_os == MACOSX:
         with cd(env.deployment_download_dir):
@@ -123,7 +124,28 @@ def get_hosts(path=None, gpg_filename=None):
     """
     # see also roledefs
     hosts = []
-    if not env.hosts:
+    passwords = {}
+
+    if env.roles:
+        for role in env.roles:
+            env.hosts.extend(env.roledefs.get(role) or [])
+    conf_string = local('cd {path}&&gpg2 --decrypt {gpg_filename}'.format(
+        path=path, gpg_filename=gpg_filename), capture=True)
+    conf_string = conf_string.replace(
+        'gpg: WARNING: message was not integrity protected', '\n')
+    conf_data = conf_string.split('\n')
+    csv_reader = csv.reader(conf_data)
+
+    if env.hosts:
+        for index, row in enumerate(csv_reader):
+            if index == 0:
+                continue
+            else:
+                if row[0] in env.hosts:
+                    host = '{user}@{hostname}:22'.format(
+                        user=env.user or 'django', hostname=row[0])
+                    env.passwords.update({host: row[1]})
+    else:
         conf_string = local('cd {path}&&gpg2 --decrypt {gpg_filename}'.format(
             path=path, gpg_filename=gpg_filename), capture=True)
         conf_string = conf_string.replace(
@@ -134,7 +156,13 @@ def get_hosts(path=None, gpg_filename=None):
             if index == 0:
                 continue
             hosts.append(row[0])
-    return hosts or env.hosts
+            host = '{user}@{hostname}:22'.format(
+                user=env.user or 'django', hostname=row[0])
+            passwords.update({host: row[1]})
+    if env.hosts:
+        return (env.hosts, env.passwords)
+    else:
+        return (hosts, passwords)
 
 
 def get_device_ids(hostname_pattern=None):
@@ -148,8 +176,9 @@ def get_device_ids(hostname_pattern=None):
         if (hostname not in env.roledefs.get('deployment_hosts')
                 and hostname not in env.roledefs.get('servers', [])):
             if not re.match(hostname_pattern, hostname):
-                abort('Invalid hostname. Got {hostname}'.format(hostname))
-            device_ids.append(hostname[-2:])
+                warn('Invalid hostname. Got {hostname}'.format(hostname))
+            else:
+                device_ids.append(hostname[-2:])
     if len(list(set(device_ids))) != len(device_ids):
         abort('Device ID list not unique.')
     return device_ids
@@ -162,7 +191,7 @@ def pip_install_from_cache():
     for package_name in package_names:
         with cd(env.deployment_pip_dir):
             with prefix('source {}'.format(os.path.join(env.venv_dir, env.venv_name, 'bin', 'activate'))):
-                run('pip install --no-index --find-links=. {package_name}'.format(
+                run('pip3 install --no-index --find-links=. {package_name}'.format(
                     package_name=package_name))
 
 
@@ -208,19 +237,20 @@ def cut_releases(source_root_path=None):
     source_root_path = source_root_path or '~/source'
 
 
-def update_env_secrets(config_root=None):
-    """Reads secrets into env from repo secrets_conf.gpg.
+def update_env_secrets(path=None):
+    """Reads secrets into env from repo secrets_conf.
     """
-    config_root = config_root or os.path.join(env.fabric_config_root, 'etc')
-    secrets_conf_path = os.path.join(config_root, env.secrets_conf)
-    if not exists(secrets_conf_path):
+    path = os.path.expanduser(path)
+    secrets_conf_path = os.path.join(path, 'secrets.conf')
+    if not os.path.exists(secrets_conf_path):
         abort('Not found {secrets_conf_gpg_path}'.format(
             secrets_conf_gpg_path=secrets_conf_path))
-    with cd(config_root):
-        config = decrypt_to_config(
-            gpg_filename=env.secrets_conf, section='secrets')
-        for key, value in config['secrets'].items():
-            setattr(env, key, value)
+    config = configparser.RawConfigParser()
+    with open(secrets_conf_path, 'r') as f:
+        data = f.read()
+    config.read_string(data)
+    for key, value in config['secrets'].items():
+        setattr(env, key, value)
 
 
 def decrypt_to_config(gpg_filename=None, section=None):
@@ -236,3 +266,29 @@ def decrypt_to_config(gpg_filename=None, section=None):
     config.read_string('{section}\n{conf_string}\n'.format(
         section=section, conf_string=conf_string.split(section)[1]))
     return config
+
+
+@task
+def test_connection(config_path=None, label=None):
+    result_os = run('sw_vers -productVersion')
+    result_mysql = run('mysql -V')
+    with open(os.path.expanduser(env.log_filename), 'a') as f:
+        if env.os_version not in result_os:
+            warn('{} OSX outdated. Got {}'.format(env.host, result_os))
+        f.write('{label}: {host} OSX {result}\n'.format(
+            label=label, host=env.host, result=result_os))
+        f.write('{label}: {host} MYSQL {result}\n'.format(
+            label=label, host=env.host, result=result_mysql))
+
+
+@task
+def gpg(config_path=None, label=None):
+    result = run('brew install gnupg gnupg2')
+#     # 'Warning: gnupg-2.1.19 already installed'
+#     with open(os.path.expanduser('~/deployment/osx.txt'), 'a') as f:
+#         if 'gnupg-2.1.19' not in result_os:
+#             warn('{} OSX outdated. Got {}'.format(env.host, result_os))
+#         f.write('{label}: {host} OSX {result}\n'.format(
+#             label=label, host=env.host, result=result_os))
+#         f.write('{label}: {host} MYSQL {result}\n'.format(
+#             label=label, host=env.host, result=result_mysql))

@@ -5,14 +5,13 @@ from pathlib import PurePath
 from fabric.api import task, env, run, cd
 from fabric.context_managers import lcd
 from fabric.contrib.files import exists
-from fabric.decorators import roles
 from fabric.operations import put, local
 from fabric.utils import abort
 
 from ..constants import MACOSX
 from ..environment import update_fabric_env
 from ..repositories import get_repo_name
-from ..utils import bootstrap_env, update_env_secrets, get_archive_name
+from ..utils import bootstrap_env, get_archive_name
 
 # NGINX_DIR = os.path.join(str(PurePath(BASE_DIR).parent), 'nginx_deployment')
 # GUNICORN_DIR = NGINX_DIR
@@ -20,9 +19,8 @@ DEFAULT_DEPLOYMENT_ROOT = '~/deployment'
 
 
 @task
-@roles('deployment_hosts')
 def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
-                            skip_clone=None):
+                            skip_clone=None, no_gpg=None):
     """Prepares the deployment host.
     """
     bootstrap_env(path=bootstrap_path, filename='bootstrap.conf')
@@ -40,16 +38,16 @@ def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
     env.fabric_config_path = os.path.join(
         env.project_repo_root, 'fabfile', 'conf', env.fabric_conf)
     prepare_deployment_dir()
-    # prepare_deployment_repo(skip_clone=skip_clone, use_branch=use_branch)
+    prepare_deployment_repo(skip_clone=skip_clone, use_branch=use_branch)
     if not exists(env.fabric_config_path):
         abort('Missing fabric config file. Expected {}'.format(
             env.fabric_config_path))
     update_fabric_env()
-    update_env_secrets()
+    # update_env_secrets()
     put_python_package(path=env.downloads_dir)
     put(os.path.join(os.path.expanduser(env.downloads_dir), env.gpg_dmg),
         os.path.join(env.deployment_download_dir, env.gpg_dmg))
-    # pip_download_cache()
+    pip_download_cache()
     create_deployment_archive()
 
 
@@ -68,7 +66,11 @@ def prepare_deployment_dir():
 
 def prepare_deployment_repo(skip_clone=None, use_branch=None):
     if not env.project_release or (not use_branch and env.project_release in ['develop', 'master']):
-        abort('Not deploying without a release version number (tag)')
+        abort('Not deploying without a release version number (tag). '
+              'Got env.project_release={project_release} and '
+              'use_branch={use_branch}'.format(
+                  project_release=env.project_release,
+                  use_branch=use_branch))
     # clone project repo into deployment folder
     if not skip_clone:
         if exists(env.project_repo_root):

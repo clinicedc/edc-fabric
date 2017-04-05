@@ -1,6 +1,6 @@
 import os
 
-from fabric.api import sudo, task, put, cd
+from fabric.api import sudo, task, put, cd, run
 from fabric.contrib.files import exists
 
 NGINX_ROOT = '/etc/nginx/'
@@ -8,6 +8,11 @@ NGINX_ROOT = '/etc/nginx/'
 
 @task
 def install_nginx():
+    run('brew install nginx')
+
+
+@task
+def configure_nginx():
 
     sites_available_dir = os.path.join(NGINX_ROOT, 'sites-available')
     sites_enabled_dir = os.path.join(NGINX_ROOT, 'sites-enabled')
