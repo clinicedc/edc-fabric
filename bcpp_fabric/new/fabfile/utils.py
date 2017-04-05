@@ -176,7 +176,8 @@ def get_device_ids(hostname_pattern=None):
         if (hostname not in env.roledefs.get('deployment_hosts')
                 and hostname not in env.roledefs.get('servers', [])):
             if not re.match(hostname_pattern, hostname):
-                warn('Invalid hostname. Got {hostname}'.format(hostname))
+                warn('Invalid hostname. Got {hostname}'.format(
+                    hostname=hostname))
             else:
                 device_ids.append(hostname[-2:])
     if len(list(set(device_ids))) != len(device_ids):
