@@ -3,10 +3,7 @@ import csv
 import os
 import re
 
-from datetime import datetime
-from io import StringIO
-
-from fabric.api import env, prefix, local, run, cd, sudo, get, task, warn, lcd
+from fabric.api import env, prefix, local, run, cd, sudo, task, warn, lcd
 from fabric.colors import red, yellow
 from fabric.contrib.files import append, contains, exists
 from fabric.utils import abort
