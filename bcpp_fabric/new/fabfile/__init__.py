@@ -1,12 +1,12 @@
 from .constants import LINUX, MACOSX
 from .deploy import prepare_deploy, deploy
 from .deployment_host import prepare_deployment_host
-from .environment import (
-    update_fabric_env, update_fabric_env_device_ids,
-    update_fabric_env_key_volumes)
+from .env import update_fabric_env
 from .files import mount_dmg, dismount_dmg
 from .mysql import install_mysql_macosx, install_mysql
+from .nginx import install_nginx
+from .pip import pip_install_from_cache, pip_install_requirements_from_cache, pip_download_core
 from .prompts import *
 from .repositories import read_requirements
 from .utils import test_connection, gpg
-from .nginx import install_nginx
+from .virtualenv import create_virtualenv

@@ -9,7 +9,8 @@ from fabric.operations import put, local
 from fabric.utils import abort
 
 from ..constants import MACOSX
-from ..environment import update_fabric_env
+from ..env import update_fabric_env
+from ..pip import pip_download_cache
 from ..utils import bootstrap_env, get_archive_name
 
 # NGINX_DIR = os.path.join(str(PurePath(BASE_DIR).parent), 'nginx_deployment')
@@ -30,6 +31,12 @@ def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
         env.project_release = release
     prepare_deployment_dir()
     prepare_deployment_repo(skip_clone=skip_clone, use_branch=use_branch)
+    with lcd(env.project_repo_root):
+        result = local('git status', capture=True)
+        results = result.split('\n')
+        if results[0] != 'On branch {bootstrap_branch}'.format(
+                bootstrap_branch=bootstrap_branch):
+            abort(results[0])
     if not exists(env.fabric_config_path):
         abort('Missing fabric config file. Expected {}'.format(
             env.fabric_config_path))
@@ -84,24 +91,6 @@ def put_python_package(path=None):
                 local('wget {}'.format(env.python_package_url))
     put(os.path.join(local_path, env.python_package),
         os.path.join(env.deployment_download_dir, env.python_package))
-
-
-def pip_download_cache():
-    """Downloads pip packages into deployment pip dir.
-    """
-    if exists(env.deployment_pip_dir):
-        run('rm -rf {deployment_pip_dir}'.format(
-            deployment_pip_dir=env.deployment_pip_dir))
-        run('mkdir -p {deployment_pip_dir}'.format(
-            deployment_pip_dir=env.deployment_pip_dir))
-    with cd(env.project_repo_root):
-        # can't use
-        # run('pip download --python-version 3 --only-binary=:all: '
-        # as not all packages have a wheel (arrow, etc)
-        run('pip download '
-            '-d {deployment_pip_dir} -r {requirements}'.format(
-                deployment_pip_dir=env.deployment_pip_dir,
-                requirements=env.requirements_file), warn_only=True)
 
 
 def create_deployment_archive():

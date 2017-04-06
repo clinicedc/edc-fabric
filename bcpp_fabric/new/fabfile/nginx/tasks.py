@@ -3,9 +3,7 @@ import os
 from fabric.api import sudo, task, put, cd, run, env
 from fabric.contrib.files import exists, contains, sed
 
-from django.conf import settings as django_settings
-
-from ..environment import update_fabric_env
+from ..env import update_fabric_env
 from ..utils import bootstrap_env
 
 
@@ -38,7 +36,7 @@ def install_nginx(config_path=None, local_fabric_conf=None, bootstrap_branch=Non
         '/usr/local/etc/nginx/servers/', env.nginx_server_conf)
     if contains(remote_server_conf, 'STATIC_ROOT'):
         sed(remote_server_conf, 'STATIC_ROOT',
-            django_settings.STATIC_ROOT, use_sudo=True)
+            env.static_root, use_sudo=True)
     if contains(remote_server_conf, 'MEDIA_ROOT'):
         sed(remote_server_conf, 'MEDIA_ROOT',
-            django_settings.MEDIA_ROOT, use_sudo=True)
+            env.media_root, use_sudo=True)

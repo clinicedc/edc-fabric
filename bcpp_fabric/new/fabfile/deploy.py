@@ -5,7 +5,7 @@ from fabric.contrib.files import exists
 
 from .apache import disable_apache
 from .constants import LINUX, MACOSX
-from .environment import update_fabric_env
+from .env import update_fabric_env
 from .repositories import get_repo, get_repo_name
 from .utils import create_venv, install_python3
 
