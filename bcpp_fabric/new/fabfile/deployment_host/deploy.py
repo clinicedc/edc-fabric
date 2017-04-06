@@ -41,7 +41,6 @@ def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
         abort('Missing fabric config file. Expected {}'.format(
             env.fabric_config_path))
     update_fabric_env()
-    put_python_package(path=env.downloads_dir)
     if env.target_os == MACOSX and not skip_pip_download:
         pip_download_cache()
     create_deployment_archive()

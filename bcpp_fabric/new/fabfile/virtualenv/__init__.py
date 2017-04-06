@@ -1,1 +1,1 @@
-from .tasks import create_virtualenv
+from .tasks import make_virtualenv, install_virtualenv, create_venv

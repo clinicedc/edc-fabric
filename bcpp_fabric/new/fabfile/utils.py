@@ -5,55 +5,13 @@ import re
 
 from fabric.api import env, local, run, cd, sudo, task, warn
 from fabric.colors import red
-from fabric.contrib.files import append, contains, exists
+from fabric.contrib.files import contains
 from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
 from .env import update_fabric_env, bootstrap_env
-from .pip import pip_install_from_cache, pip_install_requirements_from_cache
 
 # sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.locate.plist
-
-DEFAULT_VENV_DIR = '~/.venv'
-
-
-def create_venv(name=None, venv_dir=None, clear_venv=None, create_env=None,
-                update_requirements=None, requirements_file=None):
-    """Makes the venv.
-    """
-    venv_dir = venv_dir or DEFAULT_VENV_DIR
-    create_env = create_env if create_env is not None else env.create_env
-    update_requirements = update_requirements if update_requirements is not None else env.update_requirements
-    requirements_file = requirements_file or env.requirements_file
-    clean_up_virtualenv(venv_name=name)
-    if not create_env:
-        if not exists(os.path.join(venv_dir, name)):
-            abort('{}. venv does not exist!'.format(env.host))
-    else:
-        if not exists(venv_dir):
-            run('mkdir {venv_dir}'.format(venv_dir=venv_dir))
-        if not exists(os.path.join(venv_dir, name)):
-            run('rm -rf {path}'.format(path=os.path.join(venv_dir, name)))
-        with cd(venv_dir):
-            if clear_venv or not exists(os.path.join(venv_dir, name)):
-                run('python3 -m venv --clear {path} {name}'.format(path=os.path.join(venv_dir, name), name=name),
-                    warn_only=True)
-        text = 'workon () {{ source {activate}; }}'.format(
-            activate=os.path.join(venv_dir, '"$@"', 'bin', 'activate'))
-        if not contains(env.bash_profile, text):
-            append(env.bash_profile, text)
-        pip_install_from_cache('pip')
-        pip_install_from_cache('setuptools')
-        pip_install_from_cache('wheel')
-        pip_install_from_cache('ipython')
-        pip_install_requirements_from_cache()
-
-
-def clean_up_virtualenv(venv_name=None):
-    if exists('~/.virtualenvs'):
-        run('rm -rf path'.format(path=os.path.join('~/.virtualenvs', venv_name)))
-        run('pip uninstall virtualenvwrapper')
-        run('pip uninstall virtualenv')
 
 
 def install_python3(python_version=None):
@@ -61,31 +19,18 @@ def install_python3(python_version=None):
     """
     python_version = python_version or env.python_version
     if env.target_os == MACOSX:
-        python_package = env.python_package
-        with cd(env.deployment_download_dir):
-            sudo('installer -pkg {} -target /'.format(python_package))
+        run('brew install python3', warn_only=True)
     elif env.target_os == LINUX:
         sudo('apt-get install python3-pip ipython3 python3={}*'.format(python_version))
 
 
 def install_gpg(path=None):
-    """Installs gpg from a DMG.
+    """Installs gpg.
     """
     if env.target_os == MACOSX:
-        with cd(env.deployment_download_dir):
-            result = sudo('hdiutil attach {gpg_dmg}'.format(
-                gpg_dmg=env.gpg_dmg))
-            mountpoint = [
-                i.strip() for i in result.split('\n')[-1:][0].split('\t')][-1:][0]
-            mountpoint = mountpoint.replace(' ', '\ ')
-            result = run('ls -la {}'.format(mountpoint))
-            sudo('installer -pkg {path} -target /'.format(
-                path=os.path.join('/Volumes', mountpoint, 'Install.pkg')))
-            run('hdiutil detach {path}'.format(
-                path=os.path.join('/Volumes', mountpoint)), warn_only=True)
+        run('brew install gnupg gnupg2')
     elif env.target_os == LINUX:
-        pass
-        # sudo('apt-get install python3-pip ipython3 python3={}*'.format(python_version))
+        sudo('apt-get install gnupg gnupg2')
 
 
 def check_deviceids(app_name=None):
