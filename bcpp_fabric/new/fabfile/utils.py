@@ -6,13 +6,14 @@ import re
 from datetime import datetime
 from io import StringIO
 
-from fabric.api import env, prefix, local, run, cd, sudo, get, task, warn
-from fabric.colors import red
+from fabric.api import env, prefix, local, run, cd, sudo, get, task, warn, lcd
+from fabric.colors import red, yellow
 from fabric.contrib.files import append, contains, exists
 from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
 from .repositories import get_repo_name
+from bcpp_fabric.new.fabfile.environment import update_fabric_env
 
 # sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.locate.plist
 
@@ -176,7 +177,8 @@ def get_device_ids(hostname_pattern=None):
         if (hostname not in env.roledefs.get('deployment_hosts')
                 and hostname not in env.roledefs.get('servers', [])):
             if not re.match(hostname_pattern, hostname):
-                warn('Invalid hostname. Got {hostname}'.format(hostname))
+                warn('Invalid hostname. Cannot determine device ID. Ignoring. Got {hostname}'.format(
+                    hostname=hostname))
             else:
                 device_ids.append(hostname[-2:])
     if len(list(set(device_ids))) != len(device_ids):
@@ -192,7 +194,7 @@ def pip_install_from_cache():
         with cd(env.deployment_pip_dir):
             with prefix('source {}'.format(os.path.join(env.venv_dir, env.venv_name, 'bin', 'activate'))):
                 run('pip3 install --no-index --find-links=. {package_name}'.format(
-                    package_name=package_name))
+                    package_name=package_name), warn_only=True)
 
 
 def get_required_package_names():
@@ -215,10 +217,11 @@ def get_archive_name():
         project_appname=env.project_appname, release=env.project_release)
 
 
-def bootstrap_env(path=None, filename=None):
+def bootstrap_env(path=None, filename=None, bootstrap_branch=None):
     """Bootstraps env.
     """
     path = os.path.join(os.path.expanduser(path), filename or 'bootstrap.conf')
+    bootstrap_branch = bootstrap_branch or 'master'
     config = configparser.RawConfigParser()
     config.read(os.path.expanduser(path))
     env.deployment_download_dir = config['bootstrap']['deployment_download_dir']
@@ -231,6 +234,25 @@ def bootstrap_env(path=None, filename=None):
     env.fabric_conf = 'fabric.conf'
     env.hosts_conf = 'hosts.conf.gpg'
     env.secrets_conf = 'secrets.conf.gpg'
+    env.project_repo_name = get_repo_name(env.project_repo_url)
+    env.deployment_database_dir = os.path.join(env.deployment_root, 'database')
+    env.deployment_dmg_dir = os.path.join(env.deployment_root, 'dmg')
+    env.deployment_pip_dir = os.path.join(env.deployment_root, 'pip')
+    env.deployment_download_dir = os.path.join(
+        env.deployment_root, 'downloads')
+    env.project_repo_root = os.path.join(
+        env.deployment_root, env.project_repo_name)
+    env.fabric_config_root = os.path.join(env.project_repo_root, 'fabfile')
+    env.fabric_config_path = os.path.join(
+        env.project_repo_root, 'fabfile', 'conf', env.fabric_conf)
+    if bootstrap_branch != 'master':
+        warn(yellow('bootstrap read from develop!'))
+    with lcd(env.project_repo_root):
+        result = local('git status', capture=True)
+        results = result.split('\n')
+        if results[0] != 'On branch {bootstrap_branch}'.format(
+                bootstrap_branch=bootstrap_branch):
+            abort(results[0])
 
 
 def cut_releases(source_root_path=None):
@@ -269,16 +291,27 @@ def decrypt_to_config(gpg_filename=None, section=None):
 
 
 @task
-def test_connection(config_path=None, label=None):
+def test_connection(config_path=None, local_fabric_conf=None, bootstrap_branch=None):
+    bootstrap_env(
+        path=os.path.expanduser(os.path.join(config_path, 'conf')),
+        bootstrap_branch=bootstrap_branch)
+    update_fabric_env(use_local_fabric_conf=local_fabric_conf)
     result_os = run('sw_vers -productVersion')
-    result_mysql = run('mysql -V')
-    with open(os.path.expanduser(env.log_filename), 'a') as f:
+    result_mysql = run('mysql -V', warn_only=True)
+    result_nginx = run('nginx -V', warn_only=True)
+    with open(os.path.join(env.log_folder, '{host}.txt'.format(host=env.host)), 'a') as f:
         if env.os_version not in result_os:
             warn('{} OSX outdated. Got {}'.format(env.host, result_os))
-        f.write('{label}: {host} OSX {result}\n'.format(
-            label=label, host=env.host, result=result_os))
-        f.write('{label}: {host} MYSQL {result}\n'.format(
-            label=label, host=env.host, result=result_mysql))
+        f.write('{host} OSX {result}\n'.format(
+            host=env.host, result=result_os))
+        if env.mysql_version not in result_mysql:
+            warn('{} MYSQL outdated. Got {}'.format(env.host, result_mysql))
+        f.write('{host} MYSQL {result}\n'.format(
+            host=env.host, result=result_mysql))
+        if env.nginx_version not in result_nginx:
+            warn('{} NGINX outdated. Got {}'.format(env.host, result_nginx))
+        f.write('{host} NGINX {result}\n'.format(
+            host=env.host, result=result_nginx.split('\n')[0]))
 
 
 @task
@@ -292,3 +325,14 @@ def gpg(config_path=None, label=None):
 #             label=label, host=env.host, result=result_os))
 #         f.write('{label}: {host} MYSQL {result}\n'.format(
 #             label=label, host=env.host, result=result_mysql))
+
+
+@task
+def ssh_copy_id():
+    pub_key = local('cat ~/.ssh/id_rsa.pub', capture=True)
+    with cd('~/.ssh'):
+        run('touch authorized_keys')
+        result = run('cat authorized_keys', quiet=True)
+        if pub_key not in result:
+            run('cp authorized_keys authorized_keys.bak')
+            run('echo {} >> authorized_keys'.format(pub_key))

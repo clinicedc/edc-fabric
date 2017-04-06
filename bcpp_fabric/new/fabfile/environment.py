@@ -1,56 +1,68 @@
 import configparser
 import os
 
-from fabric.api import env, run
+from fabric.api import env, run, local
 from fabric.contrib.files import exists
 from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
 
 
-def update_fabric_env():
+def update_fabric_env(use_local_fabric_conf=None):
     config = configparser.RawConfigParser()
-    if not exists(env.fabric_config_path):
-        abort('Missing config file. Expected {path}'.format(
-            path=env.fabric_config_path))
+    user = env.user
+    if use_local_fabric_conf:
+        data = local('cat {path}'.format(
+            path=os.path.expanduser(env.fabric_config_path)), capture=True)
     else:
+        if not exists(env.fabric_config_path):
+            abort('Missing config file. Expected {path}'.format(
+                path=env.fabric_config_path))
         data = run('cat {path}'.format(path=env.fabric_config_path))
-        config.read_string(data)
-        for key, value in config['default'].items():
-            setattr(env, key, value)
-            print(key, getattr(env, key))
-        for key, value in config['python'].items():
-            setattr(env, key, value)
-            print(key, getattr(env, key))
-        for key, value in config['venv'].items():
-            setattr(env, key, value)
-            print(key, getattr(env, key))
-        for key, value in config['repositories'].items():
-            if value.lower() in ['true', 'yes']:
-                value = True
-            elif value.lower() in ['false', 'no']:
-                value = False
-            setattr(env, key, value)
-            print(key, getattr(env, key))
-        for key, value in config['gpg'].items():
-            setattr(env, key, value)
-            print(key, getattr(env, key))
-        for key, value in config['crypto_fields'].items():
-            setattr(env, key, value)
-            print(key, getattr(env, key))
-        # env.dmg_passphrases = config.get('dmg_passphrases', {})
-        if env.target_os == LINUX:
-            env.python_path = '/usr/bin/'
-            env.bash_profile = '~/.bash_aliases'
-        elif env.target_os == MACOSX:
-            env.python_path = '/usr/local/bin/'
-            env.bash_profile = '~/.bash_profile'
-            env.dmg_path = env.dmg_path or os.path.join(env.etc_dir)
-            print('dmg_path (updated)', env.dmg_path)
+    config.read_string(data)
+    for key, value in config['default'].items():
+        setattr(env, key, value)
+        print(key, getattr(env, key))
+    for key, value in config['python'].items():
+        setattr(env, key, value)
+        print(key, getattr(env, key))
+    for key, value in config['nginx'].items():
+        setattr(env, key, value)
+        print(key, getattr(env, key))
+    for key, value in config['mysql'].items():
+        setattr(env, key, value)
+        print(key, getattr(env, key))
+    for key, value in config['venv'].items():
+        setattr(env, key, value)
+        print(key, getattr(env, key))
+    for key, value in config['repositories'].items():
+        if value.lower() in ['true', 'yes']:
+            value = True
+        elif value.lower() in ['false', 'no']:
+            value = False
+        setattr(env, key, value)
+        print(key, getattr(env, key))
+    for key, value in config['gpg'].items():
+        setattr(env, key, value)
+        print(key, getattr(env, key))
+    for key, value in config['crypto_fields'].items():
+        setattr(env, key, value)
+        print(key, getattr(env, key))
+    # env.dmg_passphrases = config.get('dmg_passphrases', {})
+    if env.target_os == LINUX:
+        env.python_path = '/usr/bin/'
+        env.bash_profile = '~/.bash_aliases'
+    elif env.target_os == MACOSX:
+        env.python_path = '/usr/local/bin/'
+        env.bash_profile = '~/.bash_profile'
+        env.dmg_path = env.dmg_path or os.path.join(env.etc_dir)
+        print('dmg_path (updated)', env.dmg_path)
     env.create_env = True
     env.update_requirements = True
     env.update_collectstatic = True
     env.update_collectstatic_js_reverse = True
+    if user:
+        env.user = user
 
 
 # def update_fabric_env_hosts(config_path=None):

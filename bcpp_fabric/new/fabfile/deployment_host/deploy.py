@@ -10,7 +10,6 @@ from fabric.utils import abort
 
 from ..constants import MACOSX
 from ..environment import update_fabric_env
-from ..repositories import get_repo_name
 from ..utils import bootstrap_env, get_archive_name
 
 # NGINX_DIR = os.path.join(str(PurePath(BASE_DIR).parent), 'nginx_deployment')
@@ -20,34 +19,24 @@ DEFAULT_DEPLOYMENT_ROOT = '~/deployment'
 
 @task
 def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
-                            skip_clone=None, no_gpg=None):
+                            skip_clone=None, bootstrap_branch=None, skip_pip_download=None):
     """Prepares the deployment host.
     """
-    bootstrap_env(path=bootstrap_path, filename='bootstrap.conf')
-    env.project_repo_name = get_repo_name(env.project_repo_url)
-    env.project_appname = env.project_repo_name.replace('-', '_')
-    env.deployment_database_dir = os.path.join(env.deployment_root, 'database')
-    env.deployment_dmg_dir = os.path.join(env.deployment_root, 'dmg')
-    env.deployment_pip_dir = os.path.join(env.deployment_root, 'pip')
-    env.deployment_download_dir = os.path.join(
-        env.deployment_root, 'downloads')
-    env.project_repo_root = os.path.join(
-        env.deployment_root, env.project_repo_name)
-    env.project_release = release
-    env.fabric_config_root = os.path.join(env.project_repo_root, 'fabfile')
-    env.fabric_config_path = os.path.join(
-        env.project_repo_root, 'fabfile', 'conf', env.fabric_conf)
+    bootstrap_env(
+        path=bootstrap_path,
+        filename='bootstrap.conf',
+        bootstrap_branch=bootstrap_branch)
+    if release:
+        env.project_release = release
     prepare_deployment_dir()
     prepare_deployment_repo(skip_clone=skip_clone, use_branch=use_branch)
     if not exists(env.fabric_config_path):
         abort('Missing fabric config file. Expected {}'.format(
             env.fabric_config_path))
     update_fabric_env()
-    # update_env_secrets()
     put_python_package(path=env.downloads_dir)
-    put(os.path.join(os.path.expanduser(env.downloads_dir), env.gpg_dmg),
-        os.path.join(env.deployment_download_dir, env.gpg_dmg))
-    pip_download_cache()
+    if env.target_os == MACOSX and not skip_pip_download:
+        pip_download_cache()
     create_deployment_archive()
 
 

@@ -9,3 +9,4 @@ from .mysql import install_mysql_macosx, install_mysql
 from .prompts import *
 from .repositories import read_requirements
 from .utils import test_connection, gpg
+from .nginx import install_nginx
