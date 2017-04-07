@@ -105,7 +105,7 @@ def get_device_ids(hostname_pattern=None):
 
     env.hosts must be set first.
     """
-    device_ids = []
+    device_ids = {}
     hostname_pattern = hostname_pattern or env.hostname_pattern
     for hostname in env.hosts:
         if (hostname not in env.roledefs.get('deployment_hosts')
@@ -114,7 +114,7 @@ def get_device_ids(hostname_pattern=None):
                 warn('Invalid hostname. Cannot determine device ID. Ignoring. Got {hostname}'.format(
                     hostname=hostname))
             else:
-                device_ids.append(hostname[-2:])
+                device_ids.update({hostname: hostname[-2:]})
     if len(list(set(device_ids))) != len(device_ids):
         abort('Device ID list not unique.')
     return device_ids

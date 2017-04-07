@@ -57,3 +57,8 @@ def install_mysql_macosx():
 @task
 def install_mysql_linux():
     pass
+
+
+@task
+def mysql_tzinfo():
+    run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root -p mysql')
