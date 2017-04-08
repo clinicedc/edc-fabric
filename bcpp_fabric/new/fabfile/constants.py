@@ -1,0 +1,2 @@
+LINUX = 'Linux'
+MACOSX = 'Darwin'

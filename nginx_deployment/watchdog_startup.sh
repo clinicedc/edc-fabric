@@ -1,0 +1,1 @@
+source /Users/django/.virtualenvs/bcpp/bin/activate && cd /Users/django/source/bcpp && python manage.py start_observer
