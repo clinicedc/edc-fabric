@@ -3,6 +3,7 @@ from .constants import LINUX, MACOSX
 from .deployment_host import prepare_deployment_host
 from .env import update_fabric_env
 from .files import mount_dmg, dismount_dmg
+from .gunicorn import install_gunicorn
 from .mysql import install_mysql_macosx, install_mysql, install_protocol_database
 from .nginx import install_nginx
 from .pip import pip_install_from_cache, pip_install_requirements_from_cache
