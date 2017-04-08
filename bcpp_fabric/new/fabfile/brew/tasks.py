@@ -11,7 +11,8 @@ def update_deployment_brew_dir():
         run('mkdir -p {cache_dir}'.format(
             deployment_brew_dir=env.deployment_brew_dir))
     brew_cache = run('brew --cache')
-    rsync_project(local_dir=brew_cache, remote_dir=env.deployment_brew_dir)
+    rsync_project(local_dir=brew_cache,
+                  remote_dir=env.deployment_brew_dir, delete=True)
 
 
 def update_brew_cache():
@@ -27,6 +28,6 @@ def update_brew_cache():
         if 'Error' in result:
             abort(result)
     brew_cache = run('brew --cache')
-    run('rsync -pthrvz {deployment_brew_dir} {brew_cache}'.format(
+    run('rsync -pthrvz --delete {deployment_brew_dir} {brew_cache}'.format(
         deployment_brew_dir=env.deployment_brew_dir,
         brew_cache=brew_cache))

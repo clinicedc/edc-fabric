@@ -1,1 +1,1 @@
-from .tasks import install_nginx
+from .tasks import install_nginx, create_nginx_plist

@@ -21,6 +21,7 @@ def install_python3(python_version=None):
     if env.target_os == MACOSX:
         result = run('brew install python3', warn_only=True)
         if 'Error' in result:
+            run('rm /usr/local/bin/idle3')
             run('brew unlink python3')
             result = run('brew install python3', warn_only=True)
             if 'Error' in result:
@@ -34,13 +35,14 @@ def install_python3(python_version=None):
 def put_bash_profile():
     """Copies the bash_profile.
     """
+    run('rm -rf ~/.bash_*', warn_only=True)
     local_copy = os.path.expanduser(os.path.join(
         env.fabric_config_root, 'conf', 'bash_profile'))
     remote_copy = '~/.bash_profile'
     put(local_copy, remote_copy)
     result = run('source ~/.bash_profile')
     if result:
-        abort(result)
+        warn('{}: bash_profile. Got {}'.format(env.host, result))
 
 
 def check_deviceids(app_name=None):
@@ -204,7 +206,7 @@ def rsync_deployment_root():
     if not exists(remote_path):
         run('mkdir -p {path}'.format(path=remote_path))
     local_path = '{}'.format(os.path.expanduser(env.deployment_root))
-    rsync_project(local_dir=local_path, remote_dir=remote_path)
+    rsync_project(local_dir=local_path, remote_dir=remote_path, delete=True)
 
 
 def update_settings():

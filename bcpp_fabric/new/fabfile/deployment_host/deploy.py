@@ -1,9 +1,7 @@
 import os
 
-from fabric.api import task, env, run, cd
-from fabric.context_managers import lcd
+from fabric.api import task, env, run, cd, warn
 from fabric.contrib.files import exists
-from fabric.operations import local
 from fabric.utils import abort
 
 from ..brew import update_brew_cache
@@ -31,12 +29,12 @@ def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
         env.project_release = release
     prepare_deployment_dir()
     prepare_deployment_repo(skip_clone=skip_clone, use_branch=use_branch)
-    with lcd(env.project_repo_root):
-        result = local('git status', capture=True)
+    with cd(env.project_repo_root):
+        result = run('git status', warn_only=True)
         results = result.split('\n')
         if results[0] != 'On branch {bootstrap_branch}'.format(
                 bootstrap_branch=bootstrap_branch):
-            abort(results[0])
+            warn(results[0])
     if not exists(env.fabric_config_path):
         abort('Missing fabric config file. Expected {}'.format(
             env.fabric_config_path))
@@ -78,6 +76,6 @@ def prepare_deployment_repo(skip_clone=None, use_branch=None):
         with cd(env.deployment_root):
             run('git clone {project_repo_url}'.format(
                 project_repo_url=env.project_repo_url))
-    with cd(env.project_repo_root):
-        run('git checkout --force {release}'.format(
-            release=env.project_release))
+#     with cd(env.project_repo_root):
+#         run('git checkout {release}'.format(
+#             release=env.project_release), warn_only=True)

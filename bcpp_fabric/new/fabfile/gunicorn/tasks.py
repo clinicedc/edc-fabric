@@ -1,27 +1,31 @@
+import io
+import plistlib
 import os
 
-from fabric.api import cd, env, put, run, sudo, task
-
-env.source_dir = '/Users/django/source'
-
-PROJECT_DIR = os.path.join(env.source_dir, 'bcpp')
-GUNICORN_DIR = os.path.join(env.source_dir, 'bcpp-fabric', 'nginx_deployment')
+from fabric.api import cd, env, run
+from fabric.operations import put
+from ..pip import pip_install_from_cache
 
 
-def chmod(permission, file, dirr=False):
-    if dirr:
-        sudo("chmod -R %s %s" % (permission, file))
-    else:
-        sudo("chmod %s %s" % (permission, file))
-
-
-@task
 def install_gunicorn():
-    put(os.path.join(GUNICORN_DIR, 'gunicorn.conf.py'),
-        os.path.join(PROJECT_DIR, 'gunicorn.conf.py'), use_sudo=True)
-    with cd(PROJECT_DIR):
-        run('mkdir -p logs')
-        chmod('755', os.path.join(PROJECT_DIR, 'logs'), dirr=True)
-        with cd(os.path.join(PROJECT_DIR, 'logs')):
-            run('touch gunicorn-access.log')
-            run('touch gunicorn-error.log')
+    pip_install_from_cache(package_name='gunicorn')
+    with cd(env.log_root):
+        run('touch gunicorn-access.log')
+        run('touch gunicorn-error.log')
+    create_gunicorn_plist()
+
+
+def create_gunicorn_plist(project_repo_name=None, user=None):
+    project_repo_name = project_repo_name or env.project_repo_name
+    user = env.user
+    options = {
+        'Label': 'gunicorn',
+        'ProgramArguments': [
+            'sh', os.path.join('/Users/{user}/source/{project_repo_name}'.format(
+                user=user, project_repo_name=project_repo_name), 'gunicorn.sh')],
+        'KeepAlive': True,
+        'NetworkState': True,
+        'RunAtLoad': False,
+        'UserName': 'django'}
+    plist = plistlib.dumps(options, fmt=plistlib.FMT_XML)
+    put(io.BytesIO(plist), '/Library/LaunchDaemons/gunicorn.plist', use_sudo=True)

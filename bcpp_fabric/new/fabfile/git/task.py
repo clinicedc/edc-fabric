@@ -15,6 +15,10 @@ def cut_releases(source_root=None, project_repo_name=None, requirements_file=Non
     source_root = source_root or env.source_root
     project_repo_name = project_repo_name or env.project_repo_name
     requirements_file = requirements_file or env.requirements_file
+    # release project repo.
+    new_release(source_root=source_root,
+                repo_name=project_repo_name, dry_run=dry_run)
+    # release requirements
     with open(os.path.join(source_root, project_repo_name, requirements_file), 'r') as f:
         lines = f.read()
         for line in lines.split('\n'):

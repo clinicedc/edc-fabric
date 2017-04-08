@@ -1,4 +1,6 @@
+import io
 import os
+import plistlib
 
 from fabric.api import sudo, task, put, cd, run, env
 from fabric.contrib.files import exists, contains, sed
@@ -19,11 +21,11 @@ def install_nginx(config_path=None, local_fabric_conf=None, bootstrap_branch=Non
         run('brew tap homebrew/services')
         run('brew tap homebrew/nginx')
         run('brew install nginx-full --with-upload-module')
-    if not exists('/var/log/nginx'):
-        sudo('mkdir -p /var/log/nginx')
-    with cd('/var/log/nginx'):
-        sudo('touch error.log')
-        sudo('touch access.log')
+    if not exists(env.log_root):
+        sudo('mkdir -p {log_root}'.format(log_root=env.log_root))
+    with cd(env.log_root):
+        run('touch nginx-error.log')
+        run('touch nginx-access.log')
     with cd('/usr/local/etc/nginx'):
         sudo('mv nginx.conf nginx.conf.bak', warn_only=True)
     nginx_conf = os.path.expanduser(os.path.join(
@@ -40,3 +42,17 @@ def install_nginx(config_path=None, local_fabric_conf=None, bootstrap_branch=Non
     if contains(remote_server_conf, 'MEDIA_ROOT'):
         sed(remote_server_conf, 'MEDIA_ROOT',
             env.media_root, use_sudo=True)
+    create_nginx_plist()
+
+
+def create_nginx_plist():
+    options = {
+        'Label': 'nginx',
+        'Program': '/usr/local/bin/nginx',
+        'KeepAlive': True,
+        'NetworkState': True,
+        'RunAtLoad': True,
+        'UserName': 'root'}
+    plist = plistlib.dumps(options, fmt=plistlib.FMT_XML)
+    put(io.BytesIO(plist), '/Library/LaunchDaemons/nginx.plist', use_sudo=True)
+    sudo('chown root:wheel /Library/LaunchDaemons/nginx.plist')
