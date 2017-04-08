@@ -10,3 +10,4 @@ from .prompts import prompts
 from .repositories import read_requirements
 from .utils import test_connection
 from .virtualenv import make_virtualenv, install_virtualenv, create_venv
+from .git import cut_releases, new_release
