@@ -23,6 +23,7 @@ def pip_download_cache():
         pip_download('setuptools')
         pip_download('ipython')
         pip_download('wheel')
+        pip_download('gunicorn')
         run('pip3 download '
             '-d {deployment_pip_dir} -r {requirements}'.format(
                 deployment_pip_dir=env.deployment_pip_dir,
