@@ -3,15 +3,15 @@ import csv
 import os
 import re
 
-from fabric.api import env, local, run, cd, sudo, task, warn
+from fabric.api import env, local, run, cd, sudo, task, warn, put
 from fabric.colors import red
-from fabric.contrib.files import contains
+from fabric.contrib.files import contains, exists, sed
 from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
 from .env import update_fabric_env, bootstrap_env
-
-# sudo launchctl load -w /System/Library/LaunchDaemons/com.apple.locate.plist
+from pathlib import PurePath
+from fabric.contrib.project import rsync_project
 
 
 def install_python3(python_version=None):
@@ -19,18 +19,28 @@ def install_python3(python_version=None):
     """
     python_version = python_version or env.python_version
     if env.target_os == MACOSX:
-        run('brew install python3', warn_only=True)
+        result = run('brew install python3', warn_only=True)
+        if 'Error' in result:
+            run('brew unlink python3')
+            result = run('brew install python3', warn_only=True)
+            if 'Error' in result:
+                abort(result)
+        result = run('brew install python3', warn_only=True)
+        run('brew link --overwrite python3')
     elif env.target_os == LINUX:
         sudo('apt-get install python3-pip ipython3 python3={}*'.format(python_version))
 
 
-def install_gpg(path=None):
-    """Installs gpg.
+def put_bash_profile():
+    """Copies the bash_profile.
     """
-    if env.target_os == MACOSX:
-        run('brew install gnupg gnupg2')
-    elif env.target_os == LINUX:
-        sudo('apt-get install gnupg gnupg2')
+    local_copy = os.path.expanduser(os.path.join(
+        env.fabric_config_root, 'conf', 'bash_profile'))
+    remote_copy = '~/.bash_profile'
+    put(local_copy, remote_copy)
+    result = run('source ~/.bash_profile')
+    if result:
+        abort(result)
 
 
 def check_deviceids(app_name=None):
@@ -120,13 +130,6 @@ def get_device_ids(hostname_pattern=None):
     return device_ids
 
 
-def get_archive_name():
-    """Returns the name of the deployment archive.
-    """
-    return '{project_appname}.{release}.tar.bz2'.format(
-        project_appname=env.project_appname, release=env.project_release)
-
-
 def cut_releases(source_root_path=None):
     source_root_path = source_root_path or '~/source'
 
@@ -148,6 +151,12 @@ def decrypt_to_config(gpg_filename=None, section=None):
 
 @task
 def test_connection(config_path=None, local_fabric_conf=None, bootstrap_branch=None):
+    """
+    fab -R testhosts -P deploy.test_connection:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
+
+    After run, look in log_folder
+    """
+
     bootstrap_env(
         path=os.path.expanduser(os.path.join(config_path, 'conf')),
         bootstrap_branch=bootstrap_branch)
@@ -171,20 +180,16 @@ def test_connection(config_path=None, local_fabric_conf=None, bootstrap_branch=N
 
 
 @task
-def gpg(config_path=None, label=None):
-    run('brew install gnupg gnupg2')
-#     # 'Warning: gnupg-2.1.19 already installed'
-#     with open(os.path.expanduser('~/deployment/osx.txt'), 'a') as f:
-#         if 'gnupg-2.1.19' not in result_os:
-#             warn('{} OSX outdated. Got {}'.format(env.host, result_os))
-#         f.write('{label}: {host} OSX {result}\n'.format(
-#             label=label, host=env.host, result=result_os))
-#         f.write('{label}: {host} MYSQL {result}\n'.format(
-#             label=label, host=env.host, result=result_mysql))
+def ssh_copy_id(config_path=None, local_fabric_conf=None, bootstrap_branch=None):
+    """
+    Example:
+        fab -R testhosts -P deploy.ssh_copy_id:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
+    """
 
-
-@task
-def ssh_copy_id():
+    bootstrap_env(
+        path=os.path.expanduser(os.path.join(config_path, 'conf')),
+        bootstrap_branch=bootstrap_branch)
+    update_fabric_env(use_local_fabric_conf=local_fabric_conf)
     pub_key = local('cat ~/.ssh/id_rsa.pub', capture=True)
     with cd('~/.ssh'):
         run('touch authorized_keys')
@@ -192,3 +197,25 @@ def ssh_copy_id():
         if pub_key not in result:
             run('cp authorized_keys authorized_keys.bak')
             run('echo {} >> authorized_keys'.format(pub_key))
+
+
+def rsync_deployment_root():
+    remote_path = str(PurePath(env.deployment_root).parent)
+    if not exists(remote_path):
+        run('mkdir -p {path}'.format(path=remote_path))
+    local_path = '{}'.format(os.path.expanduser(env.deployment_root))
+    rsync_project(local_dir=local_path, remote_dir=remote_path)
+
+
+def update_settings():
+    with cd(os.path.join(env.remote_source_root, env.project_repo_name, env.project_appname)):
+        sed('settings.py', 'DEBUG \=.*', 'DEBUG \= False')
+        sed('settings.py', 'ANONYMOUS_ENABLED \=.*',
+            'ANONYMOUS_ENABLED \= False')
+
+
+def mount_crypto_keys():
+    """Mounts the crypto keys volume.
+    """
+    with cd(env.etc_dir):
+        run('hdiutil attach -stdinpass crypto_keys.dmg')

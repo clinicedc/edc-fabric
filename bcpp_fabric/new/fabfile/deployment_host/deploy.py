@@ -1,17 +1,16 @@
 import os
 
-from pathlib import PurePath
-
 from fabric.api import task, env, run, cd
 from fabric.context_managers import lcd
 from fabric.contrib.files import exists
-from fabric.operations import put, local
+from fabric.operations import local
 from fabric.utils import abort
 
+from ..brew import update_brew_cache
 from ..constants import MACOSX
 from ..env import update_fabric_env
 from ..pip import pip_download_cache
-from ..utils import bootstrap_env, get_archive_name
+from ..utils import bootstrap_env
 
 # NGINX_DIR = os.path.join(str(PurePath(BASE_DIR).parent), 'nginx_deployment')
 # GUNICORN_DIR = NGINX_DIR
@@ -20,7 +19,8 @@ DEFAULT_DEPLOYMENT_ROOT = '~/deployment'
 
 @task
 def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
-                            skip_clone=None, bootstrap_branch=None, skip_pip_download=None):
+                            skip_clone=None, bootstrap_branch=None,
+                            skip_pip_download=None, skip_brew_download=None):
     """Prepares the deployment host.
     """
     bootstrap_env(
@@ -43,7 +43,8 @@ def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
     update_fabric_env()
     if env.target_os == MACOSX and not skip_pip_download:
         pip_download_cache()
-    create_deployment_archive()
+    if env.target_os == MACOSX and not skip_brew_download:
+        update_brew_cache()
 
 
 def prepare_deployment_dir():
@@ -57,6 +58,10 @@ def prepare_deployment_dir():
         run('mkdir {dir}'.format(dir=env.deployment_download_dir))
     if not exists(env.deployment_database_dir):
         run('mkdir {dir}'.format(dir=env.deployment_database_dir))
+    if not exists(env.deployment_pip_dir):
+        run('mkdir {dir}'.format(dir=env.deployment_pip_dir))
+    if not exists(env.deployment_brew_dir):
+        run('mkdir {dir}'.format(dir=env.deployment_brew_dir))
 
 
 def prepare_deployment_repo(skip_clone=None, use_branch=None):
@@ -76,25 +81,3 @@ def prepare_deployment_repo(skip_clone=None, use_branch=None):
     with cd(env.project_repo_root):
         run('git checkout --force {release}'.format(
             release=env.project_release))
-
-
-def put_python_package(path=None):
-    """Puts the python package in the deployment downloads folder.
-
-    If does not exist locally in ~/Downloads will download first.
-    """
-    local_path = os.path.expanduser(path)
-    if env.target_os == MACOSX:
-        if not os.path.exists(os.path.join(local_path, env.python_package)):
-            with lcd(env.deployment_download_dir):
-                local('wget {}'.format(env.python_package_url))
-    put(os.path.join(local_path, env.python_package),
-        os.path.join(env.deployment_download_dir, env.python_package))
-
-
-def create_deployment_archive():
-    archive_name = get_archive_name()
-    with cd(str(PurePath(env.deployment_root).parent)):
-        run('tar -cjf {archive_name} {project_appname}'.format(
-            archive_name=archive_name,
-            project_appname=env.project_appname))

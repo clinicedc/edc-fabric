@@ -1,9 +1,7 @@
-from fabric.api import env
-
 YES = 'y'
 NO = 'n'
 
-env.prompts = {
+prompts = {
     'Change the root password? [Y/n]': NO,
     'Remove anonymous users? [Y/n]': YES,
     'Disallow root login remotely? [Y/n]': YES,
