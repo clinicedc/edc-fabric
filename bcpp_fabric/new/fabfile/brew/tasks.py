@@ -28,6 +28,6 @@ def update_brew_cache():
         if 'Error' in result:
             abort(result)
     brew_cache = run('brew --cache')
-    run('rsync -pthrvz --delete {deployment_brew_dir} {brew_cache}'.format(
+    run('rsync -pthrvz --delete {deployment_brew_dir}/ {brew_cache}'.format(
         deployment_brew_dir=env.deployment_brew_dir,
         brew_cache=brew_cache))

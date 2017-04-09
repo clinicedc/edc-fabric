@@ -25,6 +25,7 @@ def install_python3(python_version=None):
             run('rm /usr/local/bin/idle3')
             run('rm /usr/local/bin/pydoc3')
             run('rm /usr/local/bin/python3')
+            run('rm /usr/local/bin/python3-config')
             run('brew unlink python3')
             result = run('brew install python3', warn_only=True)
             if 'Error' in result:
@@ -182,6 +183,33 @@ def test_connection(config_path=None, local_fabric_conf=None, bootstrap_branch=N
             warn('{} NGINX outdated. Got {}'.format(env.host, result_nginx))
         f.write('{host} NGINX {result}\n'.format(
             host=env.host, result=result_nginx.split('\n')[0]))
+
+
+@task
+def test_connection2(config_path=None, local_fabric_conf=None, bootstrap_branch=None):
+    """
+    fab -R testhosts -P deploy.test_connection2:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
+    """
+
+    bootstrap_env(
+        path=os.path.expanduser(os.path.join(config_path, 'conf')),
+        bootstrap_branch=bootstrap_branch)
+    update_fabric_env(use_local_fabric_conf=local_fabric_conf)
+    run('sw_vers -productVersion')
+
+
+@task
+def brew_update(config_path=None, local_fabric_conf=None, bootstrap_branch=None):
+    """
+    fab -R testhosts -P deploy.brew_update:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
+    """
+
+    bootstrap_env(
+        path=os.path.expanduser(os.path.join(config_path, 'conf')),
+        bootstrap_branch=bootstrap_branch)
+    update_fabric_env(use_local_fabric_conf=local_fabric_conf)
+    run('sw_vers -productVersion')
+    run('brew update')
 
 
 @task

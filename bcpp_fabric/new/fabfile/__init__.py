@@ -10,5 +10,5 @@ from .nginx import install_nginx
 from .pip import pip_install_from_cache, pip_install_requirements_from_cache
 from .prompts import prompts
 from .repositories import read_requirements
-from .utils import test_connection
+from .utils import test_connection, test_connection2
 from .virtualenv import make_virtualenv, install_virtualenv, create_venv
