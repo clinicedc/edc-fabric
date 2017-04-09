@@ -5,7 +5,7 @@ import plistlib
 from fabric.api import sudo, task, put, cd, run, env
 from fabric.contrib.files import exists, contains, sed
 
-from ..env import update_fabric_env
+from ..environment import update_fabric_env
 from ..utils import bootstrap_env
 
 

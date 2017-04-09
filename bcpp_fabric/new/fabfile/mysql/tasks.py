@@ -72,12 +72,15 @@ def install_mysql_macosx():
     if 'Ver 14.14 Distrib 5.7.17' not in result:
         # run('brew services stop mysql', warn_only=True)
         run('brew tap homebrew/services')
-        run('brew install mysql')
+        result = run('brew install mysql', warn_only=True)
+        if 'Error' in result:
+            run('brew unlink mysql')
+            run('brew install mysql')
         run('brew services start mysql')
 #         run('mysqladmin -u root password \'{dbpasswd}\''.format(
 #             dbpasswd=env.dbpasswd))
         run('brew switch mysql 5.7.17')
-        run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql')
+        run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql', warn_only=True)
         if not env.dbpasswd:
             warn('{host}: DB password not set'.format(host=env.host))
             run('mysql_secure_installation')

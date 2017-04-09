@@ -15,7 +15,8 @@ def put_project_conf(project_conf=None, map_area=None):
         sudo('mkdir {etc_dir}'.format(etc_dir=env.etc_dir))
     put(local_copy, remote_copy, use_sudo=True)
     sed(remote_copy, 'device_id \=.*',
-        'device_id \= {}'.format(env.device_ids.get(env.host)),
+        'device_id \= {}'.format(
+            env.device_id or env.device_ids.get(env.host)),
         use_sudo=True)
     sed(remote_copy, 'role \=.*',
         'role \= {}'.format(env.device_role),

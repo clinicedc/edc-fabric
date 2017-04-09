@@ -1,6 +1,4 @@
-import os
-
-from fabric.api import cd, run, env, prefix, task
+from fabric.api import cd, run, env, task
 from fabric.contrib.files import exists
 
 from ..repositories import get_repo_name

@@ -1,12 +1,10 @@
-import os
-
 from fabric.api import task, env, run, cd, warn
 from fabric.contrib.files import exists
 from fabric.utils import abort
 
-from ..brew import update_brew_cache
+from ..brew import update_deployment_brew_dir
 from ..constants import MACOSX
-from ..env import update_fabric_env
+from ..environment import update_fabric_env
 from ..pip import pip_download_cache
 from ..utils import bootstrap_env
 
@@ -42,7 +40,7 @@ def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
     if env.target_os == MACOSX and not skip_pip_download:
         pip_download_cache()
     if env.target_os == MACOSX and not skip_brew_download:
-        update_brew_cache()
+        update_deployment_brew_dir()
 
 
 def prepare_deployment_dir():

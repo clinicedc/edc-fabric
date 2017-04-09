@@ -3,15 +3,16 @@ import csv
 import os
 import re
 
+from pathlib import PurePath
+
 from fabric.api import env, local, run, cd, sudo, task, warn, put
 from fabric.colors import red
 from fabric.contrib.files import contains, exists, sed
+from fabric.contrib.project import rsync_project
 from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
-from .env import update_fabric_env, bootstrap_env
-from pathlib import PurePath
-from fabric.contrib.project import rsync_project
+from .environment import update_fabric_env, bootstrap_env
 
 
 def install_python3(python_version=None):
@@ -22,6 +23,8 @@ def install_python3(python_version=None):
         result = run('brew install python3', warn_only=True)
         if 'Error' in result:
             run('rm /usr/local/bin/idle3')
+            run('rm /usr/local/bin/pydoc3')
+            run('rm /usr/local/bin/python3')
             run('brew unlink python3')
             result = run('brew install python3', warn_only=True)
             if 'Error' in result:

@@ -1,1 +1,1 @@
-from .tasks import update_brew_cache
+from .tasks import update_brew_cache, update_deployment_brew_dir
