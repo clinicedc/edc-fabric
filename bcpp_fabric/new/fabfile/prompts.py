@@ -2,6 +2,8 @@ YES = 'y'
 NO = 'n'
 
 prompts = {
+    'Are you sure you want to continue connecting (yes/no)? ': 'yes',
+    'Are you sure you want to continue connecting (yes/no)?': 'yes',
     'Type \'yes\' to continue, or \'no\' to cancel: ': 'yes',
     'Change the root password? [Y/n]': NO,
     'Remove anonymous users? [Y/n]': YES,

@@ -4,9 +4,9 @@ from .deployment_host import prepare_deployment_host
 from .environment import update_fabric_env
 from .files import mount_dmg, dismount_dmg
 from .git import cut_releases, new_release
-from .gunicorn import install_gunicorn
+from .gunicorn import install_gunicorn, install_gunicorn_task
 from .mysql import install_mysql_macosx, install_mysql, install_protocol_database
-from .nginx import install_nginx
+from .nginx import install_nginx, install_nginx_task
 from .pip import pip_install_from_cache, pip_install_requirements_from_cache
 from .prompts import prompts
 from .repositories import read_requirements

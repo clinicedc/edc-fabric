@@ -13,6 +13,7 @@ from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
 from .environment import update_fabric_env, bootstrap_env
+from fabric.context_managers import prefix, lcd
 
 
 def install_python3(python_version=None):
@@ -20,18 +21,20 @@ def install_python3(python_version=None):
     """
     python_version = python_version or env.python_version
     if env.target_os == MACOSX:
-        result = run('brew install python3', warn_only=True)
-        if 'Error' in result:
-            run('rm /usr/local/bin/idle3')
-            run('rm /usr/local/bin/pydoc3')
-            run('rm /usr/local/bin/python3')
-            run('rm /usr/local/bin/python3-config')
-            run('brew unlink python3')
+        with prefix('export HOMEBREW_NO_AUTO_UPDATE=1'):
             result = run('brew install python3', warn_only=True)
             if 'Error' in result:
-                abort(result)
-        result = run('brew install python3', warn_only=True)
-        run('brew link --overwrite python3')
+                run('rm /usr/local/bin/idle3')
+                run('rm /usr/local/bin/pydoc3')
+                run('rm /usr/local/bin/python3')
+                run('rm /usr/local/bin/python3-config')
+                run('rm /usr/local/bin/pyvenv')
+                run('brew unlink python3')
+                result = run('brew install python3', warn_only=True)
+                if 'Error' in result:
+                    abort(result)
+            result = run('brew install python3', warn_only=True)
+            run('brew link --overwrite python3')
     elif env.target_os == LINUX:
         sudo('apt-get install python3-pip ipython3 python3={}*'.format(python_version))
 
@@ -213,14 +216,14 @@ def brew_update(config_path=None, local_fabric_conf=None, bootstrap_branch=None)
 
 
 @task
-def ssh_copy_id(config_path=None, local_fabric_conf=None, bootstrap_branch=None):
+def ssh_copy_id(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=None):
     """
     Example:
         fab -R testhosts -P deploy.ssh_copy_id:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
     """
 
     bootstrap_env(
-        path=os.path.expanduser(os.path.join(config_path, 'conf')),
+        path=os.path.expanduser(bootstrap_path),
         bootstrap_branch=bootstrap_branch)
     update_fabric_env(use_local_fabric_conf=local_fabric_conf)
     pub_key = local('cat ~/.ssh/id_rsa.pub', capture=True)

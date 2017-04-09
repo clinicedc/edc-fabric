@@ -81,26 +81,26 @@ def update_fabric_env(use_local_fabric_conf=None):
     config.read_string(data)
     for key, value in config['default'].items():
         setattr(env, key, value)
-        print(key, getattr(env, key))
+        # print(key, getattr(env, key))
     for key, value in config['nginx'].items():
         setattr(env, key, value)
-        print(key, getattr(env, key))
+        # print(key, getattr(env, key))
     for key, value in config['mysql'].items():
         setattr(env, key, value)
-        print(key, getattr(env, key))
+        # print(key, getattr(env, key))
     for key, value in config['virtualenv'].items():
         setattr(env, key, value)
-        print(key, getattr(env, key))
+        # print(key, getattr(env, key))
     for key, value in config['repositories'].items():
         if value.lower() in ['true', 'yes']:
             value = True
         elif value.lower() in ['false', 'no']:
             value = False
         setattr(env, key, value)
-        print(key, getattr(env, key))
+        # print(key, getattr(env, key))
     for key, value in config['crypto_fields'].items():
         setattr(env, key, value)
-        print(key, getattr(env, key))
+        # print(key, getattr(env, key))
     # env.dmg_passphrases = config.get('dmg_passphrases', {})
     if env.target_os == LINUX:
         env.python_path = '/usr/bin/'
@@ -109,7 +109,7 @@ def update_fabric_env(use_local_fabric_conf=None):
         env.python_path = '/usr/local/bin/'
         env.bash_profile = '~/.bash_profile'
         env.dmg_path = env.dmg_path or os.path.join(env.etc_dir)
-        print('dmg_path (updated)', env.dmg_path)
+        # print('dmg_path (updated)', env.dmg_path)
     env.create_env = True
     env.update_requirements = True
     env.update_collectstatic = True

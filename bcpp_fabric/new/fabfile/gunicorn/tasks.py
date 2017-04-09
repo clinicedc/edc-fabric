@@ -2,9 +2,22 @@ import io
 import plistlib
 import os
 
-from fabric.api import cd, env, run
+from fabric.api import cd, env, run, task
 from fabric.operations import put
+
+from ..environment import bootstrap_env, update_fabric_env
 from ..pip import pip_install_from_cache
+
+
+@task
+def install_gunicorn_task(bootstrap_path=None, local_fabric_conf=None,
+                          bootstrap_branch=None, skip_bootstrap=None):
+    if not skip_bootstrap:
+        bootstrap_env(
+            path=os.path.expanduser(bootstrap_path),
+            bootstrap_branch=bootstrap_branch)
+        update_fabric_env(use_local_fabric_conf=local_fabric_conf)
+    install_gunicorn()
 
 
 def install_gunicorn():

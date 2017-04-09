@@ -7,22 +7,26 @@ from fabric.contrib.files import exists, contains, sed
 
 from ..environment import update_fabric_env
 from ..utils import bootstrap_env
+from fabric.context_managers import prefix
 
 
 @task
-def install_nginx(config_path=None, local_fabric_conf=None, bootstrap_branch=None, skip_bootstrap=None):
+def install_nginx_task(**kwargs):
+    install_nginx(**kwargs)
+
+
+def install_nginx(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=None, skip_bootstrap=None):
     if not skip_bootstrap:
         bootstrap_env(
-            path=os.path.expanduser(os.path.join(config_path, 'conf')),
+            path=os.path.expanduser(bootstrap_path),
             bootstrap_branch=bootstrap_branch)
         update_fabric_env(use_local_fabric_conf=local_fabric_conf)
     result = run('nginx -V', warn_only=True)
     if env.nginx_version not in result:
-        run('brew tap homebrew/services')
-        run('brew tap homebrew/nginx')
-        run('brew install nginx-full --with-upload-module')
-    if not exists(env.log_root):
-        sudo('mkdir -p {log_root}'.format(log_root=env.log_root))
+        with prefix('export HOMEBREW_NO_AUTO_UPDATE=1'):
+            run('brew tap homebrew/services')
+            run('brew tap homebrew/nginx')
+            run('brew install nginx-full --with-upload-module')
     with cd(env.log_root):
         run('touch nginx-error.log')
         run('touch nginx-access.log')

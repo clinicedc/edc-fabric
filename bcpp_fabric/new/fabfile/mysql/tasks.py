@@ -6,11 +6,13 @@ from fabric.api import run, task, env, cd, put, sudo, warn
 from fabric.contrib.files import exists, sed
 
 from ..constants import MACOSX, LINUX
+from fabric.context_managers import prefix
 
 
 def install_protocol_database(db_archive_name=None, dbname=None,
-                              dbuser=None, dbpasswd=None, backup_first=None):
-    backup_database(dbname=dbname, dbuser=dbuser, dbpasswd=dbpasswd)
+                              dbuser=None, dbpasswd=None, skip_backup=None):
+    if skip_backup:
+        backup_database(dbname=dbname, dbuser=dbuser, dbpasswd=dbpasswd)
     drop_database(dbname=dbname, dbuser=dbuser, dbpasswd=dbpasswd)
     create_database(dbname=dbname, dbuser=dbuser, dbpasswd=dbpasswd)
     restore_database(
@@ -48,6 +50,8 @@ def drop_database(dbname=None, dbuser=None, dbpasswd=None):
 
 
 def restore_database(db_archive_name=None, dbname=None, dbuser=None, dbpasswd=None):
+    """Restores DB from db_archive_name in deployment database dir.
+    """
     dbname = dbname or env.dbname
     dbuser = dbuser or env.dbuser
     dbpasswd = dbpasswd or env.dbpasswd
@@ -70,21 +74,22 @@ def install_mysql_macosx():
     env.prompts.update({'Enter password for user root: ': env.dbpasswd})
     result = run('mysql -V', warn_only=True)
     if 'Ver 14.14 Distrib 5.7.17' not in result:
-        # run('brew services stop mysql', warn_only=True)
-        run('brew tap homebrew/services')
-        result = run('brew install mysql', warn_only=True)
-        if 'Error' in result:
-            run('brew unlink mysql')
-            run('brew install mysql')
-        run('brew services start mysql')
-#         run('mysqladmin -u root password \'{dbpasswd}\''.format(
-#             dbpasswd=env.dbpasswd))
-        run('brew switch mysql 5.7.17')
-        run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql', warn_only=True)
-        if not env.dbpasswd:
-            warn('{host}: DB password not set'.format(host=env.host))
-            run('mysql_secure_installation')
-        result = run('mysql -V')
+        with prefix('export HOMEBREW_NO_AUTO_UPDATE=1'):
+            # run('brew services stop mysql', warn_only=True)
+            run('brew tap homebrew/services')
+            result = run('brew install mysql', warn_only=True)
+            if 'Error' in result:
+                run('brew unlink mysql')
+                run('brew install mysql')
+            run('brew services start mysql')
+    #         run('mysqladmin -u root password \'{dbpasswd}\''.format(
+    #             dbpasswd=env.dbpasswd))
+            run('brew switch mysql 5.7.17')
+            run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql', warn_only=True)
+            if not env.dbpasswd:
+                warn('{host}: DB password not set'.format(host=env.host))
+                run('mysql_secure_installation')
+            result = run('mysql -V')
     if not exists(env.etc_dir):
         sudo('mkdir -p {etc_dir}'.format(etc_dir=env.etc_dir))
     my_conf = os.path.join(env.etc_dir, 'my.cnf')
@@ -96,6 +101,9 @@ def install_mysql_macosx():
     sed(my_conf, 'password \=.*',
         'password \= {dbpasswd}'.format(dbpasswd=env.dbpasswd),
         use_sudo=True)
+    with prefix('export HOMEBREW_NO_AUTO_UPDATE=1'):
+        run('brew services stop mysql', quiet=True)
+        run('brew services start mysql', warn_only=True)
 
 
 @task
