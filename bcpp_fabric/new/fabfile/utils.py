@@ -14,6 +14,7 @@ from fabric.utils import abort
 from .constants import LINUX, MACOSX
 from .environment import update_fabric_env, bootstrap_env
 from fabric.context_managers import prefix, lcd
+from fabric.decorators import serial
 
 
 def install_python3(python_version=None):
@@ -216,7 +217,7 @@ def brew_update(config_path=None, local_fabric_conf=None, bootstrap_branch=None)
 
 
 @task
-def ssh_copy_id(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=None):
+def ssh_copy_id(bootstrap_path=None, use_local_fabric_conf=None, bootstrap_branch=None):
     """
     Example:
         fab -R testhosts -P deploy.ssh_copy_id:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
@@ -225,7 +226,7 @@ def ssh_copy_id(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=No
     bootstrap_env(
         path=os.path.expanduser(bootstrap_path),
         bootstrap_branch=bootstrap_branch)
-    update_fabric_env(use_local_fabric_conf=local_fabric_conf)
+    update_fabric_env(use_local_fabric_conf=use_local_fabric_conf)
     pub_key = local('cat ~/.ssh/id_rsa.pub', capture=True)
     with cd('~/.ssh'):
         run('touch authorized_keys')
@@ -233,6 +234,21 @@ def ssh_copy_id(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=No
         if pub_key not in result:
             run('cp authorized_keys authorized_keys.bak')
             run('echo {} >> authorized_keys'.format(pub_key))
+
+
+@task
+@serial
+def touch_host(bootstrap_path=None, use_local_fabric_conf=None, bootstrap_branch=None):
+    """
+    Example:
+        fab -R testhosts -P deploy.touch_host:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,use_local_fabric_conf=True --user=django
+    """
+    bootstrap_env(
+        path=os.path.expanduser(bootstrap_path),
+        bootstrap_branch=bootstrap_branch)
+    update_fabric_env(use_local_fabric_conf=use_local_fabric_conf)
+    with cd('~/.ssh'):
+        run('touch authorized_keys')
 
 
 def rsync_deployment_root():
