@@ -7,6 +7,7 @@ from fabric.contrib.files import exists, sed
 
 from ..constants import MACOSX, LINUX
 from fabric.context_managers import prefix
+from fabric.colors import yellow
 
 
 def install_protocol_database(db_archive_name=None, dbname=None,
@@ -75,21 +76,25 @@ def install_mysql_macosx():
     result = run('mysql -V', warn_only=True)
     if 'Ver 14.14 Distrib 5.7.17' not in result:
         with prefix('export HOMEBREW_NO_AUTO_UPDATE=1'):
-            # run('brew services stop mysql', warn_only=True)
             run('brew tap homebrew/services')
             result = run('brew install mysql', warn_only=True)
             if 'Error' in result:
                 run('brew unlink mysql')
                 run('brew install mysql')
             run('brew services start mysql')
-    #         run('mysqladmin -u root password \'{dbpasswd}\''.format(
-    #             dbpasswd=env.dbpasswd))
             run('brew switch mysql 5.7.17')
             run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql', warn_only=True)
             if not env.dbpasswd:
                 warn('{host}: DB password not set'.format(host=env.host))
                 run('mysql_secure_installation')
             result = run('mysql -V')
+    put_my_conf()
+    with prefix('export HOMEBREW_NO_AUTO_UPDATE=1'):
+        run('brew services stop mysql', quiet=True)
+        run('brew services start mysql', warn_only=True)
+
+
+def put_my_conf():
     if not exists(env.etc_dir):
         sudo('mkdir -p {etc_dir}'.format(etc_dir=env.etc_dir))
     my_conf = os.path.join(env.etc_dir, 'my.cnf')
@@ -101,18 +106,22 @@ def install_mysql_macosx():
     sed(my_conf, 'password \=.*',
         'password \= {dbpasswd}'.format(dbpasswd=env.dbpasswd),
         use_sudo=True)
-    with prefix('export HOMEBREW_NO_AUTO_UPDATE=1'):
-        run('brew services stop mysql', quiet=True)
-        run('brew services start mysql', warn_only=True)
 
 
-@task
 def install_mysql_linux():
-    pass
+    sudo('sudo apt-get install mysql-server')
+    run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql', warn_only=True)
+    sudo('mysql_secure_installation')
+    sudo('service mysql stop', warn_only=True)
+    sudo('service mysql start')
+    # run('service status mysql.service')
+    result = run(f'mysqladmin -uroot -p{env.dbpasswd} version', warn_only=True)
+    if env.mysql_version not in result:
+        warn(yellow(f'{env.host}: result'))
 
 
 @task
-def uninstall_mysql():
+def uninstall_mysql_macosx():
     run('brew services stop mysql', warn_only=True)
     run('brew remove mysql', warn_only=True)
     run('brew cleanup', warn_only=True)

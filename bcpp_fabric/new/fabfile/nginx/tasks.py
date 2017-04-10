@@ -26,7 +26,11 @@ def install_nginx(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=
         with prefix('export HOMEBREW_NO_AUTO_UPDATE=1'):
             run('brew tap homebrew/services')
             run('brew tap homebrew/nginx')
-            run('brew install nginx-full --with-upload-module')
+            result = run(
+                'brew install nginx-full --with-upload-module', warn_only=True)
+            if 'Error' in result:
+                run('brew unlink nginx')
+                run('brew install nginx-full --with-upload-module')
     with cd(env.log_root):
         run('touch nginx-error.log')
         run('touch nginx-access.log')
@@ -60,3 +64,14 @@ def create_nginx_plist():
     plist = plistlib.dumps(options, fmt=plistlib.FMT_XML)
     put(io.BytesIO(plist), '/Library/LaunchDaemons/nginx.plist', use_sudo=True)
     sudo('chown root:wheel /Library/LaunchDaemons/nginx.plist')
+
+
+@task
+def relaunch_web():
+    sudo('launchctl unload -F /Library/LaunchDaemons/nginx.plist', warn_only=True)
+    sudo('nginx -s stop', warn_only=True)
+    run('launchctl unload -F /Library/LaunchDaemons/gunicorn.plist', warn_only=True)
+    sudo('ps auxww | grep gunicorn | awk \'{print $2}\' | xargs kill -9',
+         warn_only=True)
+    sudo('launchctl load -F /Library/LaunchDaemons/nginx.plist')
+    run('launchctl load -F /Library/LaunchDaemons/gunicorn.plist')

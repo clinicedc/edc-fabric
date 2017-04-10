@@ -13,8 +13,38 @@ from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
 from .environment import update_fabric_env, bootstrap_env
-from fabric.context_managers import prefix, lcd
+from fabric.context_managers import prefix
 from fabric.decorators import serial
+
+
+@task
+def launch_webserver_task(target_os=None):
+    if target_os == MACOSX:
+        launch_webserver_macosx()
+    elif target_os == LINUX:
+        launch_webserver_linux()
+
+
+def launch_webserver():
+    if env.target_os == MACOSX:
+        launch_webserver_macosx()
+    elif env.target_os == LINUX:
+        launch_webserver_linux()
+
+
+def launch_webserver_linux():
+    pass
+
+
+def launch_webserver_macosx():
+    """Launch / Relaunch nginx/gunicorn.
+    """
+    sudo('launchctl unload -F /Library/LaunchDaemons/nginx.plist', warn_only=True)
+    sudo('nginx -s stop', warn_only=True)
+    run('launchctl unload -F /Library/LaunchDaemons/gunicorn.plist', warn_only=True)
+    sudo('launchctl load -F /Library/LaunchDaemons/nginx.plist')
+    run('launchctl load -F /Library/LaunchDaemons/gunicorn.plist')
+    run('curl http://localhost')
 
 
 def install_python3(python_version=None):
@@ -271,3 +301,41 @@ def mount_crypto_keys():
     """
     with cd(env.etc_dir):
         run('hdiutil attach -stdinpass crypto_keys.dmg')
+
+
+@task
+def fetch_map_images_task():
+    """Fetches maps images for edc_map.
+
+    For example:
+
+       fab -P -R lentsweletau deploy.fetch_map_images_task --user=django
+
+    """
+    with cd('~/source/bcpp'):
+        with prefix('source ~/.venvs/bcpp/bin/activate'):
+            run('python manage.py fetch_map_images plot.plot 10')
+
+
+@task
+def move_media_folder_task(bootstrap_path=None, bootstrap_branch=None, use_local_fabric_conf=True):
+    """Moves media folder out of the source repo.
+
+    Once off ...
+    """
+    bootstrap_env(
+        path=bootstrap_path,
+        filename='bootstrap_client.conf',
+        bootstrap_branch=bootstrap_branch)
+
+    update_fabric_env(use_local_fabric_conf=use_local_fabric_conf)
+    move_media_folder()
+
+
+def move_media_folder():
+    """Moves media folder out of the source repo.
+    """
+    old_remote_media = os.path.join(
+        env.remote_source_root, env.project_repo_name, 'media')
+    if exists(old_remote_media):
+        run(f'rsync -pthrvz --remove-source-files {old_remote_media} ~/', warn_only=True)

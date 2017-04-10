@@ -19,6 +19,13 @@ def update_deployment_brew_dir():
 
 @task
 def update_brew_task(dry_run=None, no_auto_update=None):
+    """
+    Rsync the deployment host brew cache with the remote host
+
+    For example:
+
+        fab -P -R mmankgodi brew.update_brew_task:skip_update=True --user=django
+    """
     update_brew_cache(dry_run=dry_run, no_auto_update=no_auto_update)
 
 

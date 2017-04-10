@@ -24,7 +24,8 @@ def bootstrap_env(path=None, filename=None, bootstrap_branch=None):
     env.requirements_file = config['bootstrap']['requirements_file']
     env.project_appname = config['bootstrap']['project_appname']
     env.device_role = config['bootstrap'].get('device_role')
-    env.fabric_conf = 'fabric.conf'
+    env.device_id = config['bootstrap'].get('device_id')
+    env.fabric_conf = config['bootstrap'].get('fabric_conf', 'fabric.conf')
     env.hosts_conf = 'hosts.conf.gpg'
     env.secrets_conf = 'secrets.conf.gpg'
     env.project_repo_name = get_repo_name(env.project_repo_url)
