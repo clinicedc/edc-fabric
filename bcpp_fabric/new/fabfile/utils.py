@@ -304,7 +304,7 @@ def mount_crypto_keys():
     # TODO: make path generic
     with cd('/etc/bcpp'):
         run('hdiutil attach -stdinpass crypto_keys.dmg')
-    relaunch_web
+    relaunch_web()
 
 
 @task
