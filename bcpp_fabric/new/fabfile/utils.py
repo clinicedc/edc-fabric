@@ -13,7 +13,6 @@ from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
 from .environment import update_fabric_env, bootstrap_env
-from .nginx.tasks import relaunch_web
 from fabric.context_managers import prefix
 from fabric.decorators import serial
 
@@ -297,14 +296,11 @@ def update_settings():
             'ANONYMOUS_ENABLED \= False')
 
 
-@task
 def mount_crypto_keys():
     """Mounts the crypto keys volume.
     """
-    # TODO: make path generic
-    with cd('/etc/bcpp'):
+    with cd(env.etc_dir):
         run('hdiutil attach -stdinpass crypto_keys.dmg')
-    relaunch_web()
 
 
 @task
