@@ -7,18 +7,22 @@ from pathlib import PurePath
 
 from fabric.api import env, local, run, cd, sudo, task, warn, put
 from fabric.colors import red
+from fabric.context_managers import prefix
 from fabric.contrib.files import contains, exists, sed
 from fabric.contrib.project import rsync_project
+from fabric.decorators import serial
 from fabric.utils import abort
 
 from .constants import LINUX, MACOSX
 from .environment import update_fabric_env, bootstrap_env
-from fabric.context_managers import prefix
-from fabric.decorators import serial
 
 
 @task
 def launch_webserver_task(target_os=None):
+    """Launch or relaunch the web services as a task.
+
+    Assumes all requirements are already installed.
+    """
     if target_os == MACOSX:
         launch_webserver_macosx()
     elif target_os == LINUX:
@@ -26,6 +30,10 @@ def launch_webserver_task(target_os=None):
 
 
 def launch_webserver():
+    """Launch or relaunch the web services.
+
+    Used after all requirements are installed.
+    """
     if env.target_os == MACOSX:
         launch_webserver_macosx()
     elif env.target_os == LINUX:
@@ -47,40 +55,19 @@ def launch_webserver_macosx():
     run('curl http://localhost')
 
 
-def install_python3(python_version=None):
-    """Installs python3.
-    """
-    python_version = python_version or env.python_version
+def put_bash_config():
     if env.target_os == MACOSX:
-        with prefix('export HOMEBREW_NO_AUTO_UPDATE=1'):
-            result = run('brew install python3', warn_only=True)
-            if 'Error' in result:
-                run('rm /usr/local/bin/idle3')
-                run('rm /usr/local/bin/pydoc3')
-                run('rm /usr/local/bin/python3')
-                run('rm /usr/local/bin/python3-config')
-                run('rm /usr/local/bin/pyvenv')
-                run('brew unlink python3')
-                result = run('brew install python3', warn_only=True)
-                if 'Error' in result:
-                    abort(result)
-            result = run('brew install python3', warn_only=True)
-            run('brew link --overwrite python3')
+        bash_config = 'bash_profile'
     elif env.target_os == LINUX:
-        sudo('apt-get install python3-pip ipython3 python3={}*'.format(python_version))
-
-
-def put_bash_profile():
-    """Copies the bash_profile.
-    """
+        bash_config = 'bash_aliases'
     run('rm -rf ~/.bash_*', warn_only=True)
     local_copy = os.path.expanduser(os.path.join(
-        env.fabric_config_root, 'conf', 'bash_profile'))
-    remote_copy = '~/.bash_profile'
+        env.fabric_config_root, 'conf', bash_config))
+    remote_copy = f'~/.{bash_config}'
     put(local_copy, remote_copy)
-    result = run('source ~/.bash_profile')
+    result = run(f'source ~/.{bash_config}')
     if result:
-        warn('{}: bash_profile. Got {}'.format(env.host, result))
+        warn(f'{env.host}: {bash_config}. Got {result}')
 
 
 def check_deviceids(app_name=None):

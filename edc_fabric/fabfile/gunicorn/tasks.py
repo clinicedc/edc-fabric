@@ -7,6 +7,7 @@ from fabric.operations import put
 
 from ..environment import bootstrap_env, update_fabric_env
 from ..pip import pip_install_from_cache
+from ..constants import MACOSX
 
 
 @task
@@ -20,12 +21,17 @@ def install_gunicorn_task(bootstrap_path=None, local_fabric_conf=None,
     install_gunicorn()
 
 
-def install_gunicorn():
-    pip_install_from_cache(package_name='gunicorn')
+def install_gunicorn(work_online=None):
+    if work_online:
+        activate = os.path.join(env.venv_dir, env.venv_name, 'bin', 'activate')
+        run(f'source {activate} && pip install -U gunicorn')
+    else:
+        pip_install_from_cache(package_name='gunicorn')
     with cd(env.log_root):
         run('touch gunicorn-access.log')
         run('touch gunicorn-error.log')
-    create_gunicorn_plist()
+    if env.target_os == MACOSX:
+        create_gunicorn_plist()
 
 
 def create_gunicorn_plist(project_repo_name=None, user=None):

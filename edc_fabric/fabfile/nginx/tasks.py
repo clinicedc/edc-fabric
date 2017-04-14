@@ -8,6 +8,7 @@ from fabric.contrib.files import exists, contains, sed
 from ..environment import update_fabric_env
 from ..utils import bootstrap_env
 from fabric.context_managers import prefix
+from bcpp_fabric.new.fabfile.constants import MACOSX, LINUX
 
 
 @task
@@ -15,7 +16,14 @@ def install_nginx_task(**kwargs):
     install_nginx(**kwargs)
 
 
-def install_nginx(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=None, skip_bootstrap=None):
+def install_nginx(**kwargs):
+    if env.target_os == MACOSX:
+        install_nginx_macosx(**kwargs)
+    elif env.target_os == LINUX:
+        install_nginx_linux(**kwargs)
+
+
+def install_nginx_macosx(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=None, skip_bootstrap=None):
     if not skip_bootstrap:
         bootstrap_env(
             path=os.path.expanduser(bootstrap_path),
@@ -51,6 +59,19 @@ def install_nginx(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=
         sed(remote_server_conf, 'MEDIA_ROOT',
             env.media_root, use_sudo=True)
     create_nginx_plist()
+
+
+def install_nginx_linux(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=None, skip_bootstrap=None):
+    if not skip_bootstrap:
+        bootstrap_env(
+            path=os.path.expanduser(bootstrap_path),
+            bootstrap_branch=bootstrap_branch)
+        update_fabric_env(use_local_fabric_conf=local_fabric_conf)
+    result = run('nginx -V', warn_only=True)
+    if env.nginx_version not in result:
+        sudo('apt-get install nginx curl')
+        sudo('ufw allow \'Nginx HTTP\'')
+        sudo('systemctl enable nginx')
 
 
 def create_nginx_plist():

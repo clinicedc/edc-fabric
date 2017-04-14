@@ -58,26 +58,35 @@ def make_virtualenv(venv_name=None, requirements_file=None):
     pip_install_requirements_from_cache()
 
 
-def create_venv(venv_name=None, requirements_file=None):
+def activate_venv():
+    return os.path.join(env.venv_dir, env.venv_name, 'bin', 'activate')
+
+
+def create_venv(venv_name=None, requirements_file=None, work_online=None):
     """Makes a python3 venv.
     """
-    venv_dir = DEFAULT_VENV_DIR
     venv_name = venv_name or env.venv_name
     requirements_file = requirements_file or env.requirements_file
-    if not exists(venv_dir):
-        run('mkdir {venv_dir}'.format(venv_dir=venv_dir))
-    if exists(os.path.join(venv_dir, venv_name)):
-        run('rm -rf {path}'.format(path=os.path.join(venv_dir, venv_name)))
-    with cd(venv_dir):
+    if not exists(env.venv_dir):
+        run(f'mkdir {env.venv_dir}')
+    if exists(os.path.join(env.venv_dir, venv_name)):
+        run('rm -rf {path}'.format(path=os.path.join(env.venv_dir, venv_name)))
+    with cd(env.venv_dir):
         run('python3 -m venv --clear --copies {venv_name} {path}'.format(
-            path=os.path.join(venv_dir, venv_name), venv_name=venv_name),
+            path=os.path.join(env.venv_dir, venv_name), venv_name=venv_name),
             warn_only=True)
     text = 'workon () {{ source {activate}; }}'.format(
-        activate=os.path.join(venv_dir, '"$@"', 'bin', 'activate'))
+        activate=os.path.join(env.venv_dir, '"$@"', 'bin', 'activate'))
     if not contains(env.bash_profile, text):
         append(env.bash_profile, text)
-    pip_install_from_cache('pip')
-    pip_install_from_cache('setuptools')
-    pip_install_from_cache('wheel')
-    pip_install_from_cache('ipython')
-    pip_install_requirements_from_cache()
+    if work_online:
+        run(f'source {activate_venv()} && pip install -U pip setuptools wheel ipython')
+        with cd(env.project_repo_root):
+            run(f'source {activate_venv()} && pip install -U -r {env.requirements_file}')
+
+    else:
+        pip_install_from_cache('pip')
+        pip_install_from_cache('setuptools')
+        pip_install_from_cache('wheel')
+        pip_install_from_cache('ipython')
+        pip_install_requirements_from_cache()
