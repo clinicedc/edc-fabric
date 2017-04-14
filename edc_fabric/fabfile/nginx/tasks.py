@@ -3,12 +3,12 @@ import os
 import plistlib
 
 from fabric.api import sudo, task, put, cd, run, env
-from fabric.contrib.files import exists, contains, sed
+from fabric.contrib.files import contains, sed
+from fabric.context_managers import prefix
 
 from ..environment import update_fabric_env
 from ..utils import bootstrap_env
-from fabric.context_managers import prefix
-from bcpp_fabric.new.fabfile.constants import MACOSX, LINUX
+from ..constants import MACOSX, LINUX
 
 
 @task

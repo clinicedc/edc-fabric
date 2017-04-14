@@ -7,7 +7,6 @@ from pathlib import PurePath
 
 from fabric.api import env, local, run, cd, sudo, task, warn, put
 from fabric.colors import red
-from fabric.context_managers import prefix
 from fabric.contrib.files import contains, exists, sed
 from fabric.contrib.project import rsync_project
 from fabric.decorators import serial
@@ -157,10 +156,6 @@ def get_device_ids(hostname_pattern=None):
     return device_ids
 
 
-def cut_releases(source_root_path=None):
-    source_root_path = source_root_path or '~/source'
-
-
 def decrypt_to_config(gpg_filename=None, section=None):
     """Returns a config by decrypting a conf file with a single section.
     """
@@ -250,7 +245,7 @@ def ssh_copy_id(bootstrap_path=None, use_local_fabric_conf=None, bootstrap_branc
         result = run('cat authorized_keys', quiet=True)
         if pub_key not in result:
             run('cp authorized_keys authorized_keys.bak')
-            run('echo {} >> authorized_keys'.format(pub_key))
+            run(f'echo {pub_key} >> authorized_keys')
 
 
 @task
@@ -271,8 +266,8 @@ def touch_host(bootstrap_path=None, use_local_fabric_conf=None, bootstrap_branch
 def rsync_deployment_root():
     remote_path = str(PurePath(env.deployment_root).parent)
     if not exists(remote_path):
-        run('mkdir -p {path}'.format(path=remote_path))
-    local_path = '{}'.format(os.path.expanduser(env.deployment_root))
+        run(f'mkdir -p {remote_path}')
+    local_path = os.path.expanduser(env.deployment_root)
     rsync_project(local_dir=local_path, remote_dir=remote_path, delete=True)
 
 
@@ -288,20 +283,6 @@ def mount_crypto_keys():
     """
     with cd(env.etc_dir):
         run('hdiutil attach -stdinpass crypto_keys.dmg')
-
-
-@task
-def fetch_map_images_task():
-    """Fetches maps images for edc_map.
-
-    For example:
-
-       fab -P -R lentsweletau deploy.fetch_map_images_task --user=django
-
-    """
-    with cd('~/source/bcpp'):
-        with prefix('source ~/.venvs/bcpp/bin/activate'):
-            run('python manage.py fetch_map_images plot.plot 10')
 
 
 @task
@@ -325,4 +306,5 @@ def move_media_folder():
     old_remote_media = os.path.join(
         env.remote_source_root, env.project_repo_name, 'media')
     if exists(old_remote_media):
-        run(f'rsync -pthrvz --remove-source-files {old_remote_media} ~/', warn_only=True)
+        run(
+            f'rsync -pthrvz --remove-source-files {old_remote_media} ~/', warn_only=True)
