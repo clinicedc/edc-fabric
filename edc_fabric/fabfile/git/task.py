@@ -1,7 +1,6 @@
 import os
 
 from fabric.api import local, lcd, env, warn, task, abort
-from fabric.contrib.files import exists, contains
 from fabric.colors import blue
 
 from ..repositories import get_repo_name

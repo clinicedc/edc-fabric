@@ -25,4 +25,4 @@ def install_python3(python_version=None):
     elif env.target_os == LINUX:
         sudo('add-apt-repository ppa:jonathonf/python-3.6')
         sudo('apt-get update')
-        sudo('apt-get install python3-pip ipython3 python3.6 python3-venv')
+        sudo('apt-get install python3.6-dev python3-pip ipython3 python3.6 python3-venv python3.6-venv')

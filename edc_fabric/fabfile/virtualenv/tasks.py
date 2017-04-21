@@ -63,7 +63,7 @@ def activate_venv():
 
 
 def create_venv(venv_name=None, requirements_file=None, work_online=None):
-    """Makes a python3 venv.
+    """Makes a python3.6 venv.
     """
     venv_name = venv_name or env.venv_name
     requirements_file = requirements_file or env.requirements_file
@@ -72,7 +72,7 @@ def create_venv(venv_name=None, requirements_file=None, work_online=None):
     if exists(os.path.join(env.venv_dir, venv_name)):
         run('rm -rf {path}'.format(path=os.path.join(env.venv_dir, venv_name)))
     with cd(env.venv_dir):
-        run('python3 -m venv --clear --copies {venv_name} {path}'.format(
+        run('python3.6 -m venv --clear --copies {venv_name} {path}'.format(
             path=os.path.join(env.venv_dir, venv_name), venv_name=venv_name),
             warn_only=True)
     text = 'workon () {{ source {activate}; }}'.format(

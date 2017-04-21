@@ -109,7 +109,7 @@ def put_my_conf():
 
 
 def install_mysql_linux():
-    sudo('sudo apt-get install mysql-server')
+    sudo('sudo apt-get install mysql-server libmysqlclient-dev')
     run('mysql_tzinfo_to_sql /usr/share/zoneinfo | mysql -u root mysql', warn_only=True)
     sudo('mysql_secure_installation')
     sudo('service mysql stop', warn_only=True)
