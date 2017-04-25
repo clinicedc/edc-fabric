@@ -9,7 +9,7 @@ from ..repositories import get_repo_name
 from ..constants import LINUX, MACOSX
 
 
-def bootstrap_env(path=None, filename=None, bootstrap_branch=None):
+def bootstrap_env(path=None, filename=None, bootstrap_branch=None, verbose=None):
     """Bootstraps env.
     """
     path = os.path.join(os.path.expanduser(path), filename or 'bootstrap.conf')
@@ -42,19 +42,19 @@ def bootstrap_env(path=None, filename=None, bootstrap_branch=None):
         env.project_repo_root, 'fabfile', 'conf', env.fabric_conf)
     if bootstrap_branch != 'master':
         warn(yellow('bootstrap read from develop!'))
-    else:
-        print(blue('bootstrap read from {bootstrap_branch}'.format(
-            bootstrap_branch=bootstrap_branch)))
-    print(path)
+    # else:
+    #    warn(blue('bootstrap read from {bootstrap_branch}'.format(
+    #        bootstrap_branch=bootstrap_branch)))
 
 
-def update_env_secrets(path=None):
+def update_env_secrets(path=None, verbose=None):
     """Reads secrets into env from repo secrets_conf.
     """
     path = os.path.expanduser(path)
     secrets_conf_path = os.path.join(path, 'secrets.conf')
-    print('Reading secrets from {secrets_conf_path}'.format(
-        secrets_conf_path=secrets_conf_path))
+    if verbose:
+        print('Reading secrets from {secrets_conf_path}'.format(
+            secrets_conf_path=secrets_conf_path))
     if not os.path.exists(secrets_conf_path):
         abort('Not found {secrets_conf_gpg_path}'.format(
             secrets_conf_gpg_path=secrets_conf_path))
@@ -63,12 +63,14 @@ def update_env_secrets(path=None):
         data = f.read()
     config.read_string(data)
     for key, value in config['secrets'].items():
-        print(key)
+        if verbose:
+            print(key)
         setattr(env, key, value)
 
 
-def update_fabric_env(use_local_fabric_conf=None):
-    print('fabric_config_path', os.path.expanduser(env.fabric_config_path))
+def update_fabric_env(use_local_fabric_conf=None, verbose=None):
+    if verbose:
+        print('fabric_config_path', os.path.expanduser(env.fabric_config_path))
     config = configparser.RawConfigParser()
     user = env.user
     if use_local_fabric_conf:
@@ -78,31 +80,25 @@ def update_fabric_env(use_local_fabric_conf=None):
         if not exists(env.fabric_config_path):
             abort('Missing config file. Expected {path}'.format(
                 path=env.fabric_config_path))
-        data = run('cat {path}'.format(path=env.fabric_config_path))
+        data = run('cat {path}'.format(
+            path=env.fabric_config_path), quiet=True)
     config.read_string(data)
     for key, value in config['default'].items():
         setattr(env, key, value)
-        # print(key, getattr(env, key))
     for key, value in config['nginx'].items():
         setattr(env, key, value)
-        # print(key, getattr(env, key))
     for key, value in config['mysql'].items():
         setattr(env, key, value)
-        # print(key, getattr(env, key))
     for key, value in config['virtualenv'].items():
         setattr(env, key, value)
-        # print(key, getattr(env, key))
     for key, value in config['repositories'].items():
         if value.lower() in ['true', 'yes']:
             value = True
         elif value.lower() in ['false', 'no']:
             value = False
         setattr(env, key, value)
-        # print(key, getattr(env, key))
     for key, value in config['crypto_fields'].items():
         setattr(env, key, value)
-        # print(key, getattr(env, key))
-    # env.dmg_passphrases = config.get('dmg_passphrases', {})
     if env.target_os == LINUX:
         env.python_path = '/usr/bin/'
         env.bash_profile = '~/.bash_aliases'
