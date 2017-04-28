@@ -11,14 +11,16 @@ from fabric.colors import yellow
 
 
 def install_protocol_database(db_archive_name=None, dbname=None,
-                              dbuser=None, dbpasswd=None, skip_backup=None):
-    if skip_backup:
+                              dbuser=None, dbpasswd=None, skip_backup=None,
+                              release=None, map_area=None):
+    if not skip_backup:
         backup_database(dbname=dbname, dbuser=dbuser, dbpasswd=dbpasswd)
     drop_database(dbname=dbname, dbuser=dbuser, dbpasswd=dbpasswd)
     create_database(dbname=dbname, dbuser=dbuser, dbpasswd=dbpasswd)
     restore_database(
         db_archive_name=db_archive_name,
-        dbname=dbname, dbuser=dbuser)
+        dbname=dbname, dbuser=dbuser,
+        release=release, map_area=map_area)
 
 
 def create_database(dbname=None, dbuser=None, dbpasswd=None):
@@ -50,15 +52,18 @@ def drop_database(dbname=None, dbuser=None, dbpasswd=None):
         dbuser=dbuser, dbname=dbname, dbpasswd=dbpasswd), warn_only=True)
 
 
-def restore_database(db_archive_name=None, dbname=None, dbuser=None, dbpasswd=None):
+def restore_database(db_archive_name=None, dbname=None, dbuser=None,
+                     dbpasswd=None, release=None, map_area=None):
     """Restores DB from db_archive_name in deployment database dir.
     """
     dbname = dbname or env.dbname
     dbuser = dbuser or env.dbuser
     dbpasswd = dbpasswd or env.dbpasswd
-    with cd(env.deployment_database_dir):
+    release = release or env.project_release
+    map_area = map_area or env.map_area
+    with cd(os.path.join(env.deployment_database_dir, release, map_area)):
         db_archive_name = run('ls')
-        print(db_archive_name, db_archive_name)
+        # print('db_archive_name', db_archive_name)
         run("mysql -u{dbuser} -p{dbpasswd} {dbname} < {db_archive_name}".format(
             dbuser=dbuser, dbname=dbname, dbpasswd=dbpasswd,
             db_archive_name=db_archive_name))
@@ -88,24 +93,33 @@ def install_mysql_macosx():
                 warn('{host}: DB password not set'.format(host=env.host))
                 run('mysql_secure_installation')
             result = run('mysql -V')
-    put_my_conf()
+    put_mysql_conf()
     with prefix('export HOMEBREW_NO_AUTO_UPDATE=1'):
         run('brew services stop mysql', quiet=True)
         run('brew services start mysql', warn_only=True)
 
 
-def put_my_conf():
+def put_mysql_conf():
     if not exists(env.etc_dir):
         sudo('mkdir -p {etc_dir}'.format(etc_dir=env.etc_dir))
-    my_conf = os.path.join(env.etc_dir, 'my.cnf')
-    put(os.path.expanduser(os.path.join(env.fabric_config_root, 'conf', 'mysql', 'my.cnf')),
-        my_conf, use_sudo=True)
-    sed(my_conf, 'database \=.*',
+    old_path = os.path.join(env.etc_dir, 'my.cnf')
+    if exists(old_path):
+        sudo(f'rm {old_path}')
+    mysql_conf = os.path.join(env.etc_dir, 'mysql.conf')
+    put(os.path.expanduser(os.path.join(env.fabric_config_root, 'conf', 'mysql', 'mysql.conf')),
+        mysql_conf, use_sudo=True)
+    sed(mysql_conf, 'database \=.*',
         'database \= {dbname}'.format(dbname=env.dbname),
         use_sudo=True)
-    sed(my_conf, 'password \=.*',
+    sed(mysql_conf, 'password \=.*',
         'password \= {dbpasswd}'.format(dbpasswd=env.dbpasswd),
         use_sudo=True)
+
+
+def put_my_cnf():
+    my_cnf = '~/.my.cnf'
+    put(os.path.expanduser(os.path.join(env.fabric_config_root, 'conf', 'mysql', 'my.cnf')),
+        my_cnf)
 
 
 def install_mysql_linux():

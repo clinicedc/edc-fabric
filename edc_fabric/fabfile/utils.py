@@ -2,6 +2,7 @@ import configparser
 import csv
 import os
 import re
+import time
 
 from pathlib import PurePath
 
@@ -46,11 +47,16 @@ def launch_webserver_linux():
 def launch_webserver_macosx():
     """Launch / Relaunch nginx/gunicorn.
     """
+    sudo('launchctl unload -w /System/Library/LaunchDaemons/org.apache.httpd.plist', warn_only=True)
     sudo('launchctl unload -F /Library/LaunchDaemons/nginx.plist', warn_only=True)
     sudo('nginx -s stop', warn_only=True)
     run('launchctl unload -F /Library/LaunchDaemons/gunicorn.plist', warn_only=True)
+    run("kill `cat ~/log/gunicorn.pid`", warn_only=True)
+    sudo('ps auxww | grep gunicorn | awk \'{print $2}\' | xargs kill -9',
+         warn_only=True)
     sudo('launchctl load -F /Library/LaunchDaemons/nginx.plist')
     run('launchctl load -F /Library/LaunchDaemons/gunicorn.plist')
+    time.sleep(5)
     run('curl http://localhost')
 
 
@@ -202,13 +208,13 @@ def test_connection(config_path=None, local_fabric_conf=None, bootstrap_branch=N
 
 
 @task
-def test_connection2(config_path=None, local_fabric_conf=None, bootstrap_branch=None):
+def test_connection2(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=None):
     """
     fab -R testhosts -P deploy.test_connection2:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
     """
 
     bootstrap_env(
-        path=os.path.expanduser(os.path.join(config_path, 'conf')),
+        path=bootstrap_path,
         bootstrap_branch=bootstrap_branch)
     update_fabric_env(use_local_fabric_conf=local_fabric_conf)
     run('sw_vers -productVersion')
@@ -274,8 +280,8 @@ def rsync_deployment_root():
 def update_settings():
     with cd(os.path.join(env.remote_source_root, env.project_repo_name, env.project_appname)):
         sed('settings.py', 'DEBUG \=.*', 'DEBUG \= False')
-        sed('settings.py', 'ANONYMOUS_ENABLED \=.*',
-            'ANONYMOUS_ENABLED \= False')
+        # sed('settings.py', 'ANONYMOUS_ENABLED \=.*',
+        #    'ANONYMOUS_ENABLED \= False')
 
 
 def mount_crypto_keys():
