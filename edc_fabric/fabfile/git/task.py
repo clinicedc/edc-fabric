@@ -45,6 +45,11 @@ def new_release(source_root=None, repo_name=None, dry_run=None, git_flow_init=No
     """Cuts a release for the given repo.
 
     Tag is incremented as a patch, e.g. 0.1.11 -> 0.1.12
+
+    Example:
+
+        fab -H localhost common.new_release:source_root=/Users/erikvw/source,repo_name=bcpp-subject
+
     """
     source_root = source_root or env.remote_source_root
     with lcd(os.path.join(source_root, repo_name)):

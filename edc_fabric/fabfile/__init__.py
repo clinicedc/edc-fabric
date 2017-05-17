@@ -1,6 +1,6 @@
 from .brew import update_brew_cache
 from .constants import LINUX, MACOSX
-from .deployment_host import prepare_deployment_host
+from .deployment_host import prepare_deployment_host, prepare_update_host
 from .environment import update_fabric_env
 from .files import mount_dmg, dismount_dmg, mount_dmg_locally, dismount_dmg_locally
 from .git import cut_releases, new_release

@@ -88,6 +88,10 @@ def create_nginx_plist():
 
 
 @task
+def relaunch_web_task():
+    relaunch_web()
+
+
 def relaunch_web():
     sudo('launchctl unload -F /Library/LaunchDaemons/nginx.plist', warn_only=True)
     sudo('nginx -s stop', warn_only=True)

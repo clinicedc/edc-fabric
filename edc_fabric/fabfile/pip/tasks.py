@@ -1,11 +1,14 @@
-from fabric.api import cd, run, env, task
+import os
+
+from fabric.api import cd, run, env, task, get
 from fabric.contrib.files import exists
 
 from ..repositories import get_repo_name
+from fabric.context_managers import prefix
 
 
 @task
-def pip_download_cache():
+def pip_download_cache(keep_dir=None):
     """Downloads pip packages into deployment pip dir.
     """
     if not exists(env.deployment_pip_dir):
@@ -68,3 +71,15 @@ def get_required_package_names():
                 repo_url = line.split('@')[0].replace('git+', '')
                 package_names.append(get_repo_name(repo_url))
     return package_names
+
+
+def get_pip_list():
+    local_path = os.path.expanduser(
+        f'~/fabric/download/pip.{env.host}.{env.project_release}.txt')
+    if os.path.exists(local_path):
+        os.remove(local_path)
+    remote_path = f'~/pip.freeze.{env.project_release}.txt'
+    run(f'rm {remote_path}', warn_only=True)
+    with prefix(f'source {env.venv_dir}/{env.project_appname}/bin/activate'):
+        run(f'pip freeze > {remote_path}')
+    get(remote_path=remote_path, local_path=local_path)
