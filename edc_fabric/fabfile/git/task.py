@@ -1,6 +1,6 @@
 import os
 
-from fabric.api import local, lcd, env, warn, task, abort
+from fabric.api import local, lcd, env, warn, task, abort, settings
 from fabric.colors import blue
 
 from ..repositories import get_repo_name
@@ -60,7 +60,8 @@ def new_release(source_root=None, repo_name=None, dry_run=None, git_flow_init=No
             local('git flow init -d')
         local('git checkout develop')
         local('git pull')
-        current_tag = local('git describe --abbrev=0 --tags', capture=True)
+        with settings(warn_only=True):
+            current_tag = local('git describe --abbrev=0 --tags', capture=True)
         if 'fatal' in current_tag or not current_tag:
             current_tag = '0.1.0'
         next_tag = get_next_tag(current_tag)
