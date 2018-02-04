@@ -16,7 +16,8 @@ DEFAULT_DEPLOYMENT_ROOT = '~/deployment'
 @task
 def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
                             skip_clone=None, bootstrap_branch=None,
-                            skip_pip_download=None, skip_brew_download=None):
+                            skip_pip_download=None, skip_brew_download=None,
+                            specific_tag=None):
     """Prepares the deployment host.
     """
     bootstrap_env(
@@ -26,7 +27,8 @@ def prepare_deployment_host(bootstrap_path=None, release=None, use_branch=None,
     if release:
         env.project_release = release
     prepare_deployment_dir()
-    prepare_deployment_repo(skip_clone=skip_clone, use_branch=use_branch)
+    prepare_deployment_repo(skip_clone=skip_clone, use_branch=use_branch,
+                            specific_tag=specific_tag)
     with cd(env.project_repo_root):
         result = run('git status', warn_only=True)
         results = result.split('\n')
@@ -60,7 +62,7 @@ def prepare_deployment_dir():
         run('mkdir {dir}'.format(dir=env.deployment_brew_dir))
 
 
-def prepare_deployment_repo(skip_clone=None, use_branch=None):
+def prepare_deployment_repo(skip_clone=None, specific_tag=None, use_branch=None):
     if not env.project_release or (not use_branch and env.project_release in ['develop', 'master']):
         abort('Not deploying without a release version number (tag). '
               'Got env.project_release={project_release} and '
@@ -74,6 +76,9 @@ def prepare_deployment_repo(skip_clone=None, use_branch=None):
         with cd(env.deployment_root):
             run('git clone {project_repo_url}'.format(
                 project_repo_url=env.project_repo_url))
+        if specific_tag:
+            with cd(env.project_repo_root):
+                run(f'git checkout {env.project_release}')
 #     with cd(env.project_repo_root):
 #         run('git checkout {release}'.format(
 #             release=env.project_release), warn_only=True)
