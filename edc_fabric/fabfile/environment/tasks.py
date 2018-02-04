@@ -2,7 +2,7 @@ import configparser
 import os
 
 from fabric.api import env, abort, local, warn, run
-from fabric.colors import yellow, blue
+from fabric.colors import yellow
 from fabric.contrib.files import exists
 
 from ..repositories import get_repo_name
