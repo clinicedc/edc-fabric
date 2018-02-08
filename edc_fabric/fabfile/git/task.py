@@ -22,14 +22,13 @@ def generate_requirements(source_root=None, project_repo_name=None,
             os.path.join(source_root, project_repo_name, new_requirements_file), 'w') as new_file:
         lines = f.read()
         for line in lines.split('\n'):
-            if 'botswana-harvard' in line or 'erikvw' in line:
+            if 'botswana-harvard' in line or 'erikvw' in line or project_repo_name in line:
                 repo_url = line.split('@')[0].replace('git+', '')
                 repo_name = get_repo_name(repo_url)
                 with lcd(os.path.join(source_root, repo_name)):
                     current_tag = local(
                         'git describe --abbrev=0 --tags', capture=True)
                 pre_stub = line.split('@')[0]
-                print(repo_name)
                 new_file.write(f'{pre_stub}@{current_tag}#egg={repo_name}\n')
 
 
@@ -48,7 +47,7 @@ def cut_releases(source_root=None, project_repo_name=None, requirements_file=Non
     with open(os.path.join(source_root, project_repo_name, requirements_file), 'r') as f:
         lines = f.read()
         for line in lines.split('\n'):
-            if 'botswana-harvard' in line or 'erikvw' in line:
+            if 'botswana-harvard' in line or 'erikvw' in line or project_repo_name in line:
                 repo_url = line.split('@')[0].replace('git+', '')
                 repo_name = get_repo_name(repo_url)
                 if repo_name:
