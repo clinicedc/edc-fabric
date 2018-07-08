@@ -16,7 +16,7 @@ setup(
     author_email='ew2789@gmail.com',
     packages=find_packages(),
     include_package_data=True,
-    url='https://github.com/botswana-harvard/edc-fabric',
+    url='https://github.com/clinicedc/edc-fabric',
     license='GPL license, see LICENSE',
     description='edc fabric deploy',
     long_description=README,
