@@ -1,0 +1,2 @@
+include AUTHORS CHANGES README LICENCE VERSION
+recursive-include edc_device/templates *
