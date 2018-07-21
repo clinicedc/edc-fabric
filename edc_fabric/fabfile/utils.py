@@ -47,7 +47,8 @@ def launch_webserver_linux():
 def launch_webserver_macosx():
     """Launch / Relaunch nginx/gunicorn.
     """
-    sudo('launchctl unload -w /System/Library/LaunchDaemons/org.apache.httpd.plist', warn_only=True)
+    sudo('launchctl unload -w /System/Library/LaunchDaemons/org.apache.httpd.plist',
+         warn_only=True)
     sudo('launchctl unload -F /Library/LaunchDaemons/nginx.plist', warn_only=True)
     sudo('nginx -s stop', warn_only=True)
     run('launchctl unload -F /Library/LaunchDaemons/gunicorn.plist', warn_only=True)
@@ -153,8 +154,9 @@ def get_device_ids(hostname_pattern=None):
         if (hostname not in env.roledefs.get('deployment_hosts')
                 and hostname not in env.roledefs.get('servers', [])):
             if not re.match(hostname_pattern, hostname):
-                warn('Invalid hostname. Cannot determine device ID. Ignoring. Got {hostname}'.format(
-                    hostname=hostname))
+                warn(f'Invalid hostname. Cannot determine device ID. '
+                     f'Ignoring. Got {hostname}'.format(
+                         hostname=hostname))
             else:
                 device_ids.update({hostname: hostname[-2:]})
     if len(list(set(device_ids))) != len(device_ids):
@@ -180,7 +182,9 @@ def decrypt_to_config(gpg_filename=None, section=None):
 @task
 def test_connection(config_path=None, local_fabric_conf=None, bootstrap_branch=None):
     """
-    fab -R testhosts -P deploy.test_connection:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
+    fab -R testhosts -P deploy.test_connection:config_path=/Users/erikvw/
+      source/bcpp/fabfile/,bootstrap_branch=develop,
+      local_fabric_conf=True --user=django
 
     After run, look in log_folder
     """
@@ -210,7 +214,7 @@ def test_connection(config_path=None, local_fabric_conf=None, bootstrap_branch=N
 @task
 def test_connection2(bootstrap_path=None, local_fabric_conf=None, bootstrap_branch=None):
     """
-    fab -R testhosts -P deploy.test_connection2:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
+    fab -R testhosts -P deploy.test_connection2:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django #noqa
     """
 
     bootstrap_env(
@@ -223,7 +227,7 @@ def test_connection2(bootstrap_path=None, local_fabric_conf=None, bootstrap_bran
 @task
 def brew_update(config_path=None, local_fabric_conf=None, bootstrap_branch=None):
     """
-    fab -R testhosts -P deploy.brew_update:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
+    fab -R testhosts -P deploy.brew_update:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django #noqa
     """
 
     bootstrap_env(
@@ -238,7 +242,7 @@ def brew_update(config_path=None, local_fabric_conf=None, bootstrap_branch=None)
 def ssh_copy_id(bootstrap_path=None, use_local_fabric_conf=None, bootstrap_branch=None):
     """
     Example:
-        fab -R testhosts -P deploy.ssh_copy_id:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django
+        fab -R testhosts -P deploy.ssh_copy_id:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,local_fabric_conf=True --user=django  #noqa
     """
 
     bootstrap_env(
@@ -259,7 +263,7 @@ def ssh_copy_id(bootstrap_path=None, use_local_fabric_conf=None, bootstrap_branc
 def touch_host(bootstrap_path=None, use_local_fabric_conf=None, bootstrap_branch=None):
     """
     Example:
-        fab -R testhosts -P deploy.touch_host:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,use_local_fabric_conf=True --user=django
+        fab -R testhosts -P deploy.touch_host:config_path=/Users/erikvw/source/bcpp/fabfile/,bootstrap_branch=develop,use_local_fabric_conf=True --user=django #noqa
     """
     bootstrap_env(
         path=os.path.expanduser(bootstrap_path),
